@@ -11,6 +11,9 @@ class EmptyObject:
             raise TypeError('Object type must be or inheret from EmptyObject')
         self._children.append(object)
         
+    def update(self):
+        return None
+        
         
 class Cuboid(EmptyObject): 
     def __init__(self, *args, **kwargs):

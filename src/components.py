@@ -18,20 +18,28 @@ class Transform(ComponentBase):
         x = x if x != None else self.position['x']
         y = y if y != None else self.position['y']
         z = z if z != None else self.position['z']
-        self.position = {'x':x, 'y':y, 'z':z}
+        self._position = {'x':x, 'y':y, 'z':z}
+        
+    def get_position(self):
+        return self._position
     
     def set_rotation(self, x=None, y=None, z=None):
         x = x if x != None else self.position['x']
         y = y if y != None else self.position['y']
         z = z if z != None else self.position['z']
-        self.position = {'x':x, 'y':y, 'z':z}
+        self._rotation = {'x':x, 'y':y, 'z':z}
+        
+    def get_rotation(self):
+        return self._rotation
         
     def set_scale(self, x=None, y=None, z=None):
         x = x if x != None else self.position['x']
         y = y if y != None else self.position['y']
         z = z if z != None else self.position['z']
-        self.position = {'x':x, 'y':y, 'z':z}
-        
+        self._scale = {'x':x, 'y':y, 'z':z}
+    
+    def get_scale(self):
+        return self._scale
 
 
 class MeshShape(ComponentBase):
@@ -44,14 +52,48 @@ class MeshShape(ComponentBase):
         if type not in ['cuboid', 'plane', 'sphere', 'cylinder']:
             raise ValueError('Mesh Type not defined')
         self._type = type
+    
+    def get_type(self):
+        return self._type
         
 
 class Material(ComponentBase):
-    def __init__(self, from_img=False, img_src=None, color_in_hex='#ffff', *args, **kwargs):
+    def __init__(self, ambient_color_rgba=(69, 69, 69, 1), primary_color_rgba=(138, 138, 138, 1), highlights_color_rgba=(219, 219, 219, 1), smothiness=0.3, *args, **kwargs):
         super.__init__(*args, **kwargs)
-        self.from_img = from_img
-        self.img_src = img_src
-        self.color_in_hex = color_in_hex
+        self.set_ambient_color(ambient_color_rgba)
+        self.set_primary_color(primary_color_rgba)
+        self.set_highlights_color(highlights_color_rgba)
+        self.set_smothiness(smothiness)
+        
+    def _normalize_rgba_values(self, color):
+        return (color[0]/255, color[1]/255, color[2]/255, color[3])
+    
+    def _denormalize_rgba_values(self, color):
+        return (color[0]*255, color[1]*255, color[2]*255, color[3])
+    
+    def set_ambient_color(self, color_in_rgba):
+        self._ambient_color_rgba = self._normalize_rgba_values(color_in_rgba)
+        
+    def get_ambient_color(self):
+        return self._denormalize_rgba_values(self._ambient_color_rgba)
+    
+    def set_primary_color(self, color_in_rgba):
+        self._primary_color_rgba = self._normalize_rgba_values(color_in_rgba)
+        
+    def get_primary_color(self):
+        return self._denormalize_rgba_values(self._primary_color_rgba)
+    
+    def set_highlights_color(self, color_in_rgba):
+        self._highlight_color_rgba = self._normalize_rgba_values(self._highlight_color_rgba)
+        
+    def get_highlights_color(self):
+        return self._denormalize_rgba_values(self._highlight_color_rgba)
+    
+    def set_smothiness(self, value):
+        self._smothiness = value * 128
+    
+    def get_smothiness(self):
+        return self._smothiness / 128
         
         
 if __name__ == '__main__':
