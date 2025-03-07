@@ -8,7 +8,7 @@ class InputAxisBase:
         self.sensitivity = sensitivity
         self.value = 0
         
-    def _update_value(self, keys, delta_time):
+    def update(self, keys, delta_time):
         target = 0
         if any(key in keys for key in self.positive_direction):
             target = 1
@@ -50,5 +50,5 @@ class Input:
                     pressed_keys.remove(key_name)
                     
         for axis in self.input_axes.values():
-            axis._update_value(pressed_keys, delta_time)
+            axis.update(pressed_keys, delta_time)
                 

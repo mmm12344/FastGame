@@ -10,36 +10,19 @@ class ComponentBase:
 class Transform(ComponentBase):
     def __init__(self, position={'x':0, 'y':0, 'z':0}, rotation={'x':0, 'y':0, 'z':0}, scale={'x':1, 'y':1, 'z':1}, *args, **kwargs):
         super.__init__(*args, **kwargs)
-        self._position = position
-        self._rotation = rotation
-        self._scale = scale
+        self.position = position
+        self.rotation = rotation
+        self.scale = scale
         
-    def set_position(self, x=None, y=None, z=None):
-        x = x if x != None else self.position['x']
-        y = y if y != None else self.position['y']
-        z = z if z != None else self.position['z']
-        self._position = {'x':x, 'y':y, 'z':z}
+    def translate(self, x=0, y=0, z=0):
+        self.position['x'] += x
+        self.position['y'] += y
+        self.position['z'] += z
         
-    def get_position(self):
-        return self._position
-    
-    def set_rotation(self, x=None, y=None, z=None):
-        x = x if x != None else self.position['x']
-        y = y if y != None else self.position['y']
-        z = z if z != None else self.position['z']
-        self._rotation = {'x':x, 'y':y, 'z':z}
-        
-    def get_rotation(self):
-        return self._rotation
-        
-    def set_scale(self, x=None, y=None, z=None):
-        x = x if x != None else self.position['x']
-        y = y if y != None else self.position['y']
-        z = z if z != None else self.position['z']
-        self._scale = {'x':x, 'y':y, 'z':z}
-    
-    def get_scale(self):
-        return self._scale
+    def rotate(self, x=0, y=0, z=0):
+        self.rotation['x'] += x
+        self.rotation['y'] += y
+        self.rotation['z'] += z
 
 
 class MeshShape(ComponentBase):
@@ -55,6 +38,9 @@ class MeshShape(ComponentBase):
     
     def get_type(self):
         return self._type
+    
+    def get_vertices(self):
+        
         
 
 class Material(ComponentBase):

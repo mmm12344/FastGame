@@ -97,10 +97,15 @@ class Game:
     def init_objects(self):
         for object in self._objects:
             object.input_axes = self.input_manager.input_axes
+            object.start()
             
-    def update_objects(self, delta_time):
+    def update(self):
+        delta_time = self.clock.tick(self.options['fps']) / 1000
+        self.input_manager.update(delta_time)
+        
         for object in self._objects:
             object.delta_time = delta_time
+            object.update()
             
     def run(self):
         self.init_pygame()
@@ -108,13 +113,10 @@ class Game:
         self.init_objects()
         
         while True:
-            for obj in self._objects:
-                pass
-            delta_time = self.clock.tick(self.options['fps']) / 1000
-            self.input_manager.update(delta_time)
+    
             if self.input_manager.quit == True:
                 pygame.quit()
                 sys.exit()
                 
-            self.update_objects(delta_time)
+            self.update()
             

@@ -3,7 +3,7 @@ from components import Transform, MeshShape
 
 class EmptyObject:
     def __init__(self):
-        self.transform = Transform()
+        self.transform = Transform(obj=self)
         self.children = []
         self.input_axes = {} 
         self.delta_time = 0
@@ -24,22 +24,22 @@ class EmptyObject:
 class Cuboid(EmptyObject): 
     def __init__(self, *args, **kwargs):
         super.__init__(*args, **kwargs)
-        self.mesh = MeshShape('cuboid')
+        self.mesh = MeshShape('cuboid', obj=self)
         
         
 class Plane(EmptyObject): 
     def __init__(self, *args, **kwargs):
         super.__init__(*args, **kwargs)
-        self.mesh = MeshShape('plane')
+        self.mesh = MeshShape('plane', obj=self)
         
         
 class Sphere(EmptyObject): 
     def __init__(self, *args, **kwargs):
         super.__init__(*args, **kwargs)
-        self.mesh = MeshShape('sphere')
+        self.mesh = MeshShape('sphere', obj=self)
         
 class Cylinder(EmptyObject): 
     def __init__(self, *args, **kwargs):
         super.__init__(*args, **kwargs)
-        self.mesh = MeshShape('cylinder')
+        self.mesh = MeshShape('cylinder', obj=self)
         
