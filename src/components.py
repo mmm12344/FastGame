@@ -1,4 +1,4 @@
-
+from mesh_parser import MeshParser
 
 
 class ComponentBase:
@@ -23,24 +23,24 @@ class Transform(ComponentBase):
         self.rotation['x'] += x
         self.rotation['y'] += y
         self.rotation['z'] += z
+        
 
 
 class MeshShape(ComponentBase):
-    def __init__(self, type='cuboid', *args, **kwargs):
+    def __init__(self, type='empty', *args, **kwargs):
         super.__init__(*args, **kwargs)
-        self._type = ''
+        self._mesh_parser = MeshParser()
         self.set_type(type)
         
-    def set_type(self, type = 'cuboid'):
-        if type not in ['cuboid', 'plane', 'sphere', 'cylinder']:
+    def set_type(self, type = 'empty'):
+        if type not in ['cuboid', 'plane', 'sphere', 'cylinder', 'empty']:
             raise ValueError('Mesh Type not defined')
-        self._type = type
+        self._mesh_parser.load('/meshes/{type}.obj')
     
-    def get_type(self):
-        return self._type
+    def load_mesh_obj(self, filename):
+        self._mesh_parser.load(filename)
     
-    def get_vertices(self):
-        
+    
         
 
 class Material(ComponentBase):
@@ -80,12 +80,6 @@ class Material(ComponentBase):
     
     def get_smothiness(self):
         return self._smothiness / 128
-        
-        
-if __name__ == '__main__':
-    t = Transform()
-    
-    t.set_position(0, 0)
     
     
 from base_objects import EmptyObject

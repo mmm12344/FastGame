@@ -1,6 +1,6 @@
 
 
-class Mesh:
+class MeshParser:
     def __init__(self, filename=None):
         self.vertices = []
         self.texture_coords = []
