@@ -1,4 +1,4 @@
-from base_objects import EmptyObject
+from game_objects import EmptyObject
 from components import *
 import pygame
 from pygame.locals import *
@@ -8,43 +8,6 @@ from OpenGL.GLU import *
 import numpy as np
 import time, sys
 from input_manager import Input
-
-
-class Renderer:
-    
-    def render_cuboid(obj):
-        base_vertices = [
-            [1, 1, -1],  [1, -1, -1],  [-1, -1, -1],  [-1, 1, -1],  
-            [1, 1, 1],  [1, -1, 1],  [-1, -1, 1],  [-1, 1, 1]  
-        ]
-        faces = [
-            (0, 1, 2, 3),
-            (4, 5, 6, 7),
-            (0, 1, 5, 4),
-            (2, 3, 7, 6),
-            (0, 3, 7, 4),
-            (1, 2, 6, 5)
-        ]
-        for vertix in base_vertices:
-            vertix = vertix * list(obj.transform.get_position().values())
-
-            
-        
-            
-    def render_obj(obj):
-        if type(obj) != type(EmptyObject):
-            raise TypeError('Object type must be or inheret from EmptyObject')
-        
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glPushMatrix()
-        if obj.mesh_shape.get_type() == 'cuboid':
-            Renderer.render_cuboid(obj)
-            
-        
-        
-            
-
-
 
 
 
@@ -91,8 +54,10 @@ class Game:
         
     def init_opengl(self):
         gluPerspective(45, (self.display[0] / self.display[1]), 0.1, 50.0)
-        glTranslatef(0.0, 0.0, -5)
         glEnable(GL_DEPTH_TEST)
+        glDepthMask(GL_TRUE)
+        glDepthFunc(GL_LESS)
+        glDepthRange(0.0, 1.0)
         
     def init_objects(self):
         for object in self._objects:

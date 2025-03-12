@@ -1,11 +1,12 @@
 from mesh_parser import MeshParser
+from utils import Color
 
 
 class ComponentBase:
-    def __init__(self, obj):
-        if type(obj) != type(EmptyObject):
-            raise TypeError('Object type must be or inheret from EmptyObject')
-        self.obj = obj
+    def __init__(self, game_obj):
+        if type(game_obj) != GameObject:
+            raise TypeError('Object type must be GameObject')
+        self.game_obj = game_obj
 
 class Transform(ComponentBase):
     def __init__(self, position={'x':0, 'y':0, 'z':0}, rotation={'x':0, 'y':0, 'z':0}, scale={'x':1, 'y':1, 'z':1}, *args, **kwargs):
@@ -26,7 +27,7 @@ class Transform(ComponentBase):
         
 
 
-class MeshShape(ComponentBase):
+class Mesh(ComponentBase):
     def __init__(self, type='empty', *args, **kwargs):
         super.__init__(*args, **kwargs)
         self._mesh_parser = MeshParser()
@@ -44,42 +45,75 @@ class MeshShape(ComponentBase):
         
 
 class Material(ComponentBase):
-    def __init__(self, ambient_color_rgba=(69, 69, 69, 1), primary_color_rgba=(138, 138, 138, 1), highlights_color_rgba=(219, 219, 219, 1), smothiness=0.3, *args, **kwargs):
+    def __init__(self, color=Color("808080"), alpha=1.0, ambient_light=1, diffuse_reflection=1, specular_reflection=1, smooth=False, wireframe=False, *args, **kwargs):
         super.__init__(*args, **kwargs)
-        self.set_ambient_color(ambient_color_rgba)
-        self.set_primary_color(primary_color_rgba)
-        self.set_highlights_color(highlights_color_rgba)
-        self.set_smothiness(smothiness)
         
-    def _normalize_rgba_values(self, color):
-        return (color[0]/255, color[1]/255, color[2]/255, color[3])
-    
-    def _denormalize_rgba_values(self, color):
-        return (color[0]*255, color[1]*255, color[2]*255, color[3])
-    
-    def set_ambient_color(self, color_in_rgba):
-        self._ambient_color_rgba = self._normalize_rgba_values(color_in_rgba)
+        self._color = None
+        self.color = color
+        self.alpha = alpha
+        self.ambient_light = ambient_light
+        self.diffuse_reflection = diffuse_reflection
+        self.specular_reflection = specular_reflection
+        self.smooth = smooth
+        self.wireframe = wireframe
         
-    def get_ambient_color(self):
-        return self._denormalize_rgba_values(self._ambient_color_rgba)
+    @property
+    def color(self):
+        return self._color
     
-    def set_primary_color(self, color_in_rgba):
-        self._primary_color_rgba = self._normalize_rgba_values(color_in_rgba)
+    @color.setter
+    def color(self, value):
+        if type(value) != Color:
+            raise TypeError()
+        self._color = value
         
-    def get_primary_color(self):
-        return self._denormalize_rgba_values(self._primary_color_rgba)
-    
-    def set_highlights_color(self, color_in_rgba):
-        self._highlight_color_rgba = self._normalize_rgba_values(self._highlight_color_rgba)
         
-    def get_highlights_color(self):
-        return self._denormalize_rgba_values(self._highlight_color_rgba)
+      
+        
+class Texture(ComponentBase):
+    def __init__(self, texture_path=None, texture_wrapping='repeat', texture_filtering='linear', *args, **kwargs):
+        super.__init__(*args, **kwargs)
+        
+        if texture_wrapping not in ['repeat', 'mirrored_repeat', 'clamp_to_edge', 'clamp_to_border']:
+            raise ValueError("Texture wrapping must be one of the following: ['repeat', 'mirrored_repeat', 'clamp_to_edge', 'clamp_to_border']")
+        if texture_filtering not in ['linear', 'nearest']:
+            raise ValueError("Texture filtering must be one of the following: ['linear', 'nearest']")
+        
+        self._texture_path = texture_path
+        self._texture_wrapping = texture_wrapping
+        self._texture_filtering = texture_filtering
+        self._texture_bytes = None
+        self.load_texture()
+        
+    @property
+    def texture_path(self):
+        return self._texture_path       
     
-    def set_smothiness(self, value):
-        self._smothiness = value * 128
+    @texture_path.setter
+    def texture_path(self, value):
+        self.texture_path = value
+        self.load_texture()
+        
+    @property
+    def texture_wrapping(self):
+        return self._texture_wrapping
     
-    def get_smothiness(self):
-        return self._smothiness / 128
+    @texture_wrapping.setter
+    def texture_wrapping(self, value):
+        self._texture_wrapping = value
+        
+    @property
+    def texture_filtering(self):
+        return self._texture_filtering
+    
+    @texture_filtering.setter
+    def texture_filtering(self, value):
+        self._texture_filtering = value
+        
+    def load_texture(self):
+        with open(self.texture_path, 'rb') as f:
+            self.texture_bytes = f.read()
+            
     
     
-from base_objects import EmptyObject
+from game_objects import GameObject
