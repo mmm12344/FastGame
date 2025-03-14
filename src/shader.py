@@ -1,4 +1,5 @@
 from OpenGL.GL import *
+import numpy as np  
 
 class Shader:
     def __init__(self, vertex_shader_path, fragement_shader_path):
@@ -8,13 +9,26 @@ class Shader:
         self.fragement_shader_source = ''
         self.program_id = None
         
+        self.compile()
+        
     def set_uniform(self, uniform_name, value):
+        location = glGetUniformLocation(self.program_id, uniform_name)
         if type(value) == int:
-            glUniform1i(glGetUniformLocation(self.program_id, uniform_name), value)
+            glUniform1i(location, value)
         elif type(value) == float:
-            glUniform1f(glGetUniformLocation(self.program_id, uniform_name), value)
+            glUniform1f(location, value)
         elif type(value) == bool:
-            glUniform1i(glGetUniformLocation(self.program_id, uniform_name), int(value))
+            glUniform1i(location, int(value))
+        elif isinstance(value, (list, tuple, np.ndarray)):
+            if len(value) == 2:
+                glUniform2f(location, *value)
+            elif len(value) == 3:
+                glUniform3f(location, *value)
+            elif len(value) == 4:
+                glUniform4f(location, *value)
+                
+    def get_attribute_location(self, attribute_name):
+        return glGetAttribLocation(self.program_id, attribute_name)
 
     def read_shader(self, path):
         with open(path, 'r') as f:

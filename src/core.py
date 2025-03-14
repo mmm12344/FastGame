@@ -19,7 +19,6 @@ class Game:
         'fps' : 60
     }):
         self.options = options
-        self._objects = []
         self.running = False
         self._clock = None
         self.input_manager = input_manager
@@ -28,15 +27,6 @@ class Game:
         self.show_title_bar = options['show_title_bar']
         self.title = options['title']
         self.fps = options['fps']
-        
-    def add_object(self, obj):
-        if type(obj) != type(EmptyObject):
-            raise TypeError('Object type must be or inheret from EmptyObject')
-        self._objects.append(object)
-        
-    def set_objects(self, lst):
-        for obj in lst:
-            self.add_object(obj)
             
     def init_pygame(self):
         pygame.init()
