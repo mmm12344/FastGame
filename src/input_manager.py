@@ -29,6 +29,7 @@ class Input:
     def __init__(self, input_axes = {}):
         self.quit = False
         self.input_axes = input_axes
+        self.internal_data = {}
         
     def add_axis(self, axis_name, axis_obj):
         self.input_axes[axis_name] = axis_obj
@@ -36,7 +37,7 @@ class Input:
     def remove_axis(self, axis_name):
         del self.input_axes[axis_name]
         
-    def update(self, delta_time):
+    def update(self):
         pressed_keys = set()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -50,5 +51,5 @@ class Input:
                     pressed_keys.remove(key_name)
                     
         for axis in self.input_axes.values():
-            axis.update(pressed_keys, delta_time)
+            axis.update(pressed_keys, self.internal_data['delta_time'])
                 

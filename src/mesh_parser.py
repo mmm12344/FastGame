@@ -1,11 +1,12 @@
+import os
 import numpy as np
+import trimesh
 
 class MeshParser:
     def __init__(self, filename=None):
         self.vertex_positions = np.array([], dtype=np.float32)
         self.texture_coords = np.array([], dtype=np.float32)
         self.normals = np.array([], dtype=np.float32)
-        
         self.indices = np.array([], dtype=np.int32)
         self.vertices = np.array([], dtype=np.float32)
         
@@ -13,57 +14,26 @@ class MeshParser:
             self.load(filename)
     
     def load(self, filename):
+        full_path = os.path.join(os.path.dirname(__file__), filename)
+        mesh = trimesh.load(full_path, force='mesh')
         
-        vertex_map = {}
-        with open(filename, 'r') as file:
-            for line in file:
-                if not line or line.startswith('#'):
-                    continue
-                parts = line.strip().split()
-                if not parts:
-                    continue
-                prefix = parts[0]
-                if prefix == 'v':
-                    vertex = tuple(map(float, parts[1:4]))
-                    self.vertex_positions.append(vertex)
-                elif prefix == 'vt':
-                    tex_coord = tuple(map(float, parts[1:3]))
-                    self.texture_coords.append(tex_coord)
-                elif prefix == 'vn':
-                    normal = tuple(map(float, parts[1:4]))
-                    self.normals.append(normal)
-                elif prefix == 'f':
-                    face = []
-                    for v in parts[1:]:
-                        indices = v.split('/')
-                        vertex_index = int(indices[0]) - 1 if indices[0] else None
-                        tex_index = int(indices[1]) - 1 if len(indices) >= 2 and indices[1] != '' else None
-                        norm_index = int(indices[2]) - 1 if len(indices) == 3 and indices[2] != '' else None
-                        key = (vertex_index, tex_index, norm_index)
-                        face.append(key)
-                        
-                        if key not in vertex_map:
-                        
-                            combined = self.vertex_positions[vertex_index]
-                            if tex_index is not None:
-                                combined += self.texture_coords[tex_index]
-                            else:
-                                combined += [0.0, 0.0]
-                            
-                            if norm_index is not None:
-                                combined += self.normals[norm_index]
-                            else:
-                                combined += [0.0, 0.0, 0.0]
-                           
-                            vertex_map[key] = len(self.vertices)
-                            self.vertices.append(combined)
-                        face.append(vertex_map[key])
-                        
-                if len(face) > 3:
-                    for i in range(1, len(face) - 1):
-                        self.indices.extend([face[0], face[i], face[i+1]])
-                else:
-                    self.indices.extend(face)
-                    
-    
-    
+        self.vertex_positions = mesh.vertices.astype(np.float32)
+        self.indices = mesh.faces.astype(np.int32)
+        
+        if mesh.vertex_normals is not None:
+            self.normals = mesh.vertex_normals.astype(np.float32)
+        else:
+            self.normals = np.zeros_like(mesh.vertices, dtype=np.float32)
+        
+        if hasattr(mesh.visual, 'uv') and mesh.visual.uv is not None:
+            self.texture_coords = mesh.visual.uv.astype(np.float32)
+        else:
+            self.texture_coords = np.zeros((mesh.vertices.shape[0], 2), dtype=np.float32)
+        
+        vertices_list = []
+        for i, pos in enumerate(mesh.vertices):
+            tex = self.texture_coords[i] if i < len(self.texture_coords) else [0.0, 0.0]
+            norm = self.normals[i] if i < len(self.normals) else [0.0, 0.0, 0.0]
+            combined = np.concatenate((pos, tex, norm))
+            vertices_list.append(combined)
+        self.vertices = np.array(vertices_list, dtype=np.float32)

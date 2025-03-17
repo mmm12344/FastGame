@@ -1,10 +1,11 @@
 from OpenGL.GL import *
 import numpy as np  
+import os
 
 class Shader:
-    def __init__(self, vertex_shader_path, fragement_shader_path):
-        self.vertex_shader_path = vertex_shader_path
-        self.fragement_shader_path = fragement_shader_path
+    def __init__(self, vertex_shader_path, fragment_shader_path):
+        self.vertex_shader_path = os.path.join(os.path.dirname(__file__), vertex_shader_path)
+        self.fragement_shader_path = os.path.join(os.path.dirname(__file__), fragment_shader_path)
         self.vertex_shader_source = ''
         self.fragement_shader_source = ''
         self.program_id = None
@@ -13,19 +14,56 @@ class Shader:
         
     def set_uniform(self, uniform_name, value):
         location = glGetUniformLocation(self.program_id, uniform_name)
-        if type(value) == int:
+        if isinstance(value, int):
             glUniform1i(location, value)
-        elif type(value) == float:
+        elif isinstance(value, float):
             glUniform1f(location, value)
-        elif type(value) == bool:
+        elif isinstance(value, bool):
             glUniform1i(location, int(value))
-        elif isinstance(value, (list, tuple, np.ndarray)):
-            if len(value) == 2:
-                glUniform2f(location, *value)
-            elif len(value) == 3:
-                glUniform3f(location, *value)
-            elif len(value) == 4:
-                glUniform4f(location, *value)
+        elif isinstance(value, np.ndarray):
+            if value.ndim == 2:
+                if value.shape == (2, 2):
+                    glUniformMatrix2fv(location, 1, GL_TRUE, value)
+                elif value.shape == (3, 3):
+                    glUniformMatrix3fv(location, 1, GL_TRUE, value)
+                elif value.shape == (4, 4):
+                    glUniformMatrix4fv(location, 1, GL_TRUE, value)
+                else:
+                    raise ValueError("Unsupported matrix shape: " + str(value.shape))
+            elif value.ndim == 1:
+                if value.shape[0] == 2:
+                    glUniform2f(location, *value)
+                elif value.shape[0] == 3:
+                    glUniform3f(location, *value)
+                elif value.shape[0] == 4:
+                    glUniform4f(location, *value)
+                else:
+                    raise ValueError("Unsupported vector length: " + str(value.shape[0]))
+            else:
+                raise ValueError("Unsupported numpy array dimension: " + str(value.ndim))
+        elif isinstance(value, (list, tuple)):
+            arr = np.array(value)
+            if arr.ndim == 1:
+                if arr.shape[0] == 2:
+                    glUniform2f(location, *arr)
+                elif arr.shape[0] == 3:
+                    glUniform3f(location, *arr)
+                elif arr.shape[0] == 4:
+                    glUniform4f(location, *arr)
+                else:
+                    raise ValueError("Unsupported vector length: " + str(arr.shape[0]))
+            elif arr.ndim == 2:
+                if arr.shape == (2, 2):
+                    glUniformMatrix2fv(location, 1, GL_FALSE, arr)
+                elif arr.shape == (3, 3):
+                    glUniformMatrix3fv(location, 1, GL_FALSE, arr)
+                elif arr.shape == (4, 4):
+                    glUniformMatrix4fv(location, 1, GL_FALSE, arr)
+                else:
+                    raise ValueError("Unsupported matrix shape: " + str(arr.shape))
+        else:
+            raise TypeError("Unsupported uniform type: " + str(type(value)))
+
                 
     def get_attribute_location(self, attribute_name):
         return glGetAttribLocation(self.program_id, attribute_name)

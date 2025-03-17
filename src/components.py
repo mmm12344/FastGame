@@ -2,16 +2,20 @@ import ctypes
 import numpy as np
 import math
 from OpenGL.GL import *
+
 from PIL import Image
-from mesh_parser import MeshParser
-from utils import Color
-from game_objects import GameObject
+from .mesh_parser import MeshParser
+from .utils import Color
+from .game_objects import GameObject
+from pyglm import glm
+
+
 
 class ComponentBase:
-    def __init__(self, game_obj):
-        if not isinstance(game_obj, GameObject):
+    def __init__(self, game_object):
+        if not isinstance(game_object, GameObject):
             raise TypeError('Object type must be GameObject')
-        self.game_obj = game_obj
+        self.game_object = game_object
 
 class RenderedComponent(ComponentBase):
     def set_uniforms(self):
@@ -30,41 +34,14 @@ class Transform(RenderedComponent):
         self.rotation = rotation
         self.scale = scale
         
-    def _create_translation_matrix(self, tx, ty, tz):
-        return np.array([[1, 0, 0, tx],
-                         [0, 1, 0, ty],
-                         [0, 0, 1, tz],
-                         [0, 0, 0, 1]], dtype=np.float32)
-        
-    def _create_rotation_matrix(self, rx, ry, rz):
-        cosx, sinx = math.cos(rx), math.sin(rx)
-        rotx = np.array([[1, 0, 0, 0],
-                         [0, cosx, -sinx, 0],
-                         [0, sinx, cosx, 0],
-                         [0, 0, 0, 1]], dtype=np.float32)
-        cosy, siny = math.cos(ry), math.sin(ry)
-        roty = np.array([[cosy, 0, siny, 0],
-                         [0, 1, 0, 0],
-                         [-siny, 0, cosy, 0],
-                         [0, 0, 0, 1]], dtype=np.float32)
-        cosz, sinz = math.cos(rz), math.sin(rz)
-        rotz = np.array([[cosz, -sinz, 0, 0],
-                         [sinz, cosz, 0, 0],
-                         [0, 0, 1, 0],
-                         [0, 0, 0, 1]], dtype=np.float32)
-        return rotx @ roty @ rotz
-    
-    def _create_scale_matrix(self, sx, sy, sz):
-        return np.array([[sx, 0, 0, 0],
-                         [0, sy, 0, 0],
-                         [0, 0, sz, 0],
-                         [0, 0, 0, 1]], dtype=np.float32)
-        
     def _compute_model_matrix(self):
-        translation = self._create_translation_matrix(self.position['x'], self.position['y'], self.position['z'])
-        rotation = self._create_rotation_matrix(self.rotation['x'], self.rotation['y'], self.rotation['z'])
-        scale = self._create_scale_matrix(self.scale['x'], self.scale['y'], self.scale['z'])
-        return translation @ rotation @ scale
+        model = glm.mat4(1.0)
+        model = glm.translate(model, glm.vec3(self.position['x'], self.position['y'], self.position['z']))
+        model = glm.rotate(model, self.rotation['x'], glm.vec3(1, 0, 0))
+        model = glm.rotate(model, self.rotation['y'], glm.vec3(0, 1, 0))
+        model = glm.rotate(model, self.rotation['z'], glm.vec3(0, 0, 1))
+        model = glm.scale(model, glm.vec3(self.scale['x'], self.scale['y'], self.scale['z']))
+        return np.array(model, dtype=np.float32)
     
     def translate(self, x=0, y=0, z=0):
         self.position['x'] += x
@@ -75,15 +52,37 @@ class Transform(RenderedComponent):
         self.rotation['x'] += x
         self.rotation['y'] += y
         self.rotation['z'] += z
+
         
     def set_uniforms(self):
         model_matrix = self._compute_model_matrix()
         return {"model": model_matrix}
     
+    
+class LightTransform(Transform):
+    def set_uniforms(self):
+        return {
+            'light.position': np.array([self.position['x'], 
+                                        self.position['y'], 
+                                        self.position['z']], dtype=np.float32)
+        }
+        
+        
 
+        
+class CameraTransform(Transform):
+    def set_uniforms(self):
+        view_position = [self.position['x'], self.position['y'], self.position['z']]
+        # target = [0, 0, 0]  # Or whatever your scene's center is
+        # up = [0, 1, 0]
+        view_matrix = self._compute_model_matrix()
+        # view_matrix = np.array(glm.lookAt(glm.vec3(*view_position), glm.vec3(0, 0, 0), glm.vec3(0, 1, 0)), dtype=np.float32)
+        return {"view": view_matrix,
+                "view_position": np.array(view_position, dtype=np.float32)}
+        
 
 class Mesh(RenderedComponent):
-    def __init__(self, mesh=MeshParser('meshes/cuboid'), *args, **kwargs):
+    def __init__(self, mesh, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._mesh = None
         self.mesh = mesh
@@ -100,15 +99,15 @@ class Mesh(RenderedComponent):
         
     def set_buffers(self):
         return {
-            'VBO': self.mesh.vertices,
-            'EBO': self.mesh.indices
+            'VBO': self.mesh.vertices.flatten(),
+            'EBO': self.mesh.indices.flatten()
         }
 
 
 
 
 class Material(RenderedComponent):
-    def __init__(self, color=Color("808080"), alpha=1.0,
+    def __init__(self, color=Color("FAF9F6"), alpha=1.0,
                  ambient_light=1, diffuse_reflection=1,
                  specular_reflection=1, wireframe=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -132,10 +131,10 @@ class Material(RenderedComponent):
         
     def set_uniforms(self):
         return {
-            'vertex_color': [*self.color, self.alpha],
-            'ambient_light': self.ambient_light,
-            'diffuse_reflection': self.diffuse_reflection,
-            'specular_reflection': self.specular_reflection
+            'material.vertex_color': [*self.color.color_in_rgb, self.alpha],
+            'material.ambient_light': float(self.ambient_light),
+            'material.diffuse_reflection': float(self.diffuse_reflection),
+            'material.specular_reflection': float(self.specular_reflection)
         }
         
     def setup(self):
@@ -207,25 +206,36 @@ class Texture(RenderedComponent):
         glGenerateMipmap(GL_TEXTURE_2D)
         glBindTexture(GL_TEXTURE_2D, 0)
         
-    def set_uniforms(self):
-        return {
-            'texture_id': self.texture_id,
-            'texture_wrapping': self.texture_wrapping,
-            'texture_filtering': self.texture_filtering
-        }
+    # def set_uniforms(self):
         
 class LightSource(RenderedComponent):
-    def __init__(self, light_type='point', color=Color("FFFFFF"), position={'x': 0, 'y': 0, 'z': 0}, *args, **kwargs):
+    def __init__(self, light_type='point', color=Color("FFFFFF"), *args, **kwargs):
         super().__init__(*args, **kwargs)
         if light_type not in ['point', 'directional', 'spot']:
             raise ValueError("Light type must be one of: ['point', 'directional', 'spot']")
+        
         self.light_type = light_type
         self.color = color
-        self.position = position
         
     def set_uniforms(self):
         return {
-            'light_type': self.light_type,
-            'light_color': [*self.color, 1.0],
-            'light_position': [self.position['x'], self.position['y'], self.position['z']]
+            'light.color': [*self.color.color_in_rgb],
         }
+        
+class CameraLens(RenderedComponent):
+    def __init__(self, FOV=140, near=0.1, far=100, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.FOV = FOV
+        self.near = near
+        self.far = far
+        
+    def compute_perspective_projection_matrix(self):
+        aspect_ratio = self.game_object.internal_data['window_width']/ self.game_object.internal_data['window_height']
+        return np.array(glm.perspective(glm.radians(self.FOV), aspect_ratio, self.near, self.far), dtype=np.float32)
+           
+        
+    def set_uniforms(self):
+        return {
+            'projection': self.compute_perspective_projection_matrix()
+        }
+

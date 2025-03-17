@@ -1,4 +1,5 @@
-
+from OpenGL.GL import *
+from OpenGL.GLU import *
 
 
 class Color:
@@ -37,3 +38,10 @@ class Color:
     
     def __str__(self):
         return self.color_in_rgb
+    
+    
+def check_gl_error():
+    error = glGetError()
+    while error != GL_NO_ERROR:
+        print("OpenGL Error:", gluErrorString(error).decode('utf-8'))
+        error = glGetError()
