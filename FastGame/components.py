@@ -9,54 +9,109 @@ from .utils import Color
 from .game_objects import GameObject
 from pyglm import glm
 
+from . import internal_data
+
+
 
 
 class ComponentBase:
-    def __init__(self, game_object):
-        if not isinstance(game_object, GameObject):
-            raise TypeError('Object type must be GameObject')
+    def __init__(self, game_object=None):
+        if game_object is not None:
+            if not isinstance(game_object, GameObject):
+                raise TypeError('Object type must be GameObject')
         self.game_object = game_object
+    
+    def start(self):
+        pass
+            
+    def update(self):
+        pass
+
+        
+        
+class ComponentManager:
+    def __init__(self, game_object):
+        if game_object is not None:
+            if not isinstance(game_object, GameObject):
+                raise TypeError('Object type must be GameObject')
+        
+        self._components = {}
+        self.game_object = game_object
+        
+        
+    def add(self, component_name, component):
+        if not isinstance(component, ComponentBase):
+            raise TypeError('component must be of type ComponentBase')
+        component.game_object = self.game_object
+        component.start()
+        self._components[component_name] = component
+    
+    def get(self, component_name : str):
+        return self._components.get(component_name)
+    
+    def get_all(self, component_class=None):
+        if component_class is None:
+            return self._components.values()
+        return [component for component in self._components.values() if isinstance(component, component_class)]
+    
+    def remove(self, component_name):
+        self._components.pop(component_name, None)
+        
+    def remove_all(self, component_class):
+        for key, value in self._components.items():
+            if isinstance(value, component_class):
+                self._components.pop(key)
+    
+    
+    def update(self):
+        for component in self._components.values():
+            component.update()
+        
+        
+        
 
 class RenderedComponent(ComponentBase):
     def set_uniforms(self):
         return {}
-    def set_buffers(self):
-        return {}
-    def setup(self):
-        pass
+    
 
 class Transform(RenderedComponent):
-    def __init__(self, position={'x': 0, 'y': 0, 'z': 0},
-                 rotation={'x': 0, 'y': 0, 'z': 0},
-                 scale={'x': 1, 'y': 1, 'z': 1}, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.position = position
-        self.rotation = rotation
-        self.scale = scale
+        self.position = {'x': 0, 'y': 0, 'z': 0}
+        self.rotation = {'x': 0, 'y': 0, 'z': 0}
+        self.scale = {'x': 1, 'y': 1, 'z': 1}
         
-    def _compute_model_matrix(self):
-        model = glm.mat4(1.0)
-        model = glm.translate(model, glm.vec3(self.position['x'], self.position['y'], self.position['z']))
-        model = glm.rotate(model, self.rotation['x'], glm.vec3(1, 0, 0))
-        model = glm.rotate(model, self.rotation['y'], glm.vec3(0, 1, 0))
-        model = glm.rotate(model, self.rotation['z'], glm.vec3(0, 0, 1))
-        model = glm.scale(model, glm.vec3(self.scale['x'], self.scale['y'], self.scale['z']))
-        return np.array(model, dtype=np.float32)
+        self._model = glm.mat4(1.0)
+        
     
     def translate(self, x=0, y=0, z=0):
         self.position['x'] += x
         self.position['y'] += y
         self.position['z'] += z
         
+        translation = glm.mat4(1.0)
+        translation = glm.translate(translation, glm.vec3(x, y, z))
+        
+        self._model = translation * self._model
+        
     def rotate(self, x=0, y=0, z=0):
         self.rotation['x'] += x
         self.rotation['y'] += y
         self.rotation['z'] += z
-
+        
+        rotation = glm.mat4(1.0)
+        rotation = glm.rotate(rotation, glm.radians(x), glm.vec3(1, 0, 0))
+        rotation = glm.rotate(rotation, glm.radians(y), glm.vec3(0, 1, 0))
+        rotation = glm.rotate(rotation, glm.radians(z), glm.vec3(0, 0, 1))
+        
+        self._model = rotation * self._model
+        
+    def get_distance_from(self, x=0, y=0, z=0):
+        return glm.distance(glm.vec3(self.position['x'], self.position['y'], self.position['z']), glm.vec3(x, y, z))
         
     def set_uniforms(self):
-        model_matrix = self._compute_model_matrix()
-        return {"model": model_matrix}
+        return {"model": np.array(self._model, dtype=np.float32)}
     
     
 class LightTransform(Transform):
@@ -73,16 +128,12 @@ class LightTransform(Transform):
 class CameraTransform(Transform):
     def set_uniforms(self):
         view_position = [self.position['x'], self.position['y'], self.position['z']]
-        # target = [0, 0, 0]  # Or whatever your scene's center is
-        # up = [0, 1, 0]
-        view_matrix = self._compute_model_matrix()
-        # view_matrix = np.array(glm.lookAt(glm.vec3(*view_position), glm.vec3(0, 0, 0), glm.vec3(0, 1, 0)), dtype=np.float32)
-        return {"view": view_matrix,
+        return {"view": np.array(self._model, dtype=np.float32),
                 "view_position": np.array(view_position, dtype=np.float32)}
         
 
 class Mesh(RenderedComponent):
-    def __init__(self, mesh, *args, **kwargs):
+    def __init__(self, mesh=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._mesh = None
         self.mesh = mesh
@@ -93,6 +144,8 @@ class Mesh(RenderedComponent):
     
     @mesh.setter
     def mesh(self, value):
+        if value is None:
+            return
         if not isinstance(value, MeshParser):
             raise TypeError("mesh type must be MeshParser")
         self._mesh = value
@@ -107,9 +160,9 @@ class Mesh(RenderedComponent):
 
 
 class Material(RenderedComponent):
-    def __init__(self, color=Color("FAF9F6"), alpha=1.0,
-                 ambient_light=1, diffuse_reflection=1,
-                 specular_reflection=1, wireframe=False, *args, **kwargs):
+    def __init__(self, color=Color("C0C0C0"), alpha=1.0,
+                 ambient_light=0.3, diffuse_reflection=0.7,
+                 specular_reflection=1, shininess = 100, wireframe=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._color = None
         self.color = color
@@ -117,6 +170,7 @@ class Material(RenderedComponent):
         self.ambient_light = ambient_light
         self.diffuse_reflection = diffuse_reflection
         self.specular_reflection = specular_reflection
+        self.shininess = shininess
         self.wireframe = wireframe
         
     @property
@@ -134,10 +188,11 @@ class Material(RenderedComponent):
             'material.vertex_color': [*self.color.color_in_rgb, self.alpha],
             'material.ambient_light': float(self.ambient_light),
             'material.diffuse_reflection': float(self.diffuse_reflection),
-            'material.specular_reflection': float(self.specular_reflection)
+            'material.specular_reflection': float(self.specular_reflection),
+            'material.shininess': float(self.shininess)
         }
         
-    def setup(self):
+    def update(self):
         if self.wireframe:
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
         else:
@@ -192,7 +247,7 @@ class Texture(RenderedComponent):
             
 
 
-    def setup(self):
+    def update(self):
         self._texture_id = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self._texture_id)
         
@@ -223,14 +278,14 @@ class LightSource(RenderedComponent):
         }
         
 class CameraLens(RenderedComponent):
-    def __init__(self, FOV=140, near=0.1, far=100, *args, **kwargs):
+    def __init__(self, FOV=45, near=0.1, far=100, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.FOV = FOV
         self.near = near
         self.far = far
         
     def compute_perspective_projection_matrix(self):
-        aspect_ratio = self.game_object.internal_data['window_width']/ self.game_object.internal_data['window_height']
+        aspect_ratio = internal_data.window_width / internal_data.window_height
         return np.array(glm.perspective(glm.radians(self.FOV), aspect_ratio, self.near, self.far), dtype=np.float32)
            
         
@@ -238,4 +293,27 @@ class CameraLens(RenderedComponent):
         return {
             'projection': self.compute_perspective_projection_matrix()
         }
+        
 
+
+
+class Script(ComponentBase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @property
+    def delta_time(self):
+        return internal_data.delta_time
+    
+    @property
+    def input_axes(self):
+        return internal_data.input_manager.input_axes
+        
+        
+        
+    def update(self):
+        pass
+    def start(self):
+        pass  
+    
+    

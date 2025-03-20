@@ -9,6 +9,7 @@ class Shader:
         self.vertex_shader_source = ''
         self.fragement_shader_source = ''
         self.program_id = None
+       
         
         self.compile()
         
@@ -109,6 +110,8 @@ class Shader:
         
         glDeleteShader(vertex_shader)
         glDeleteShader(fragment_shader)
+        
+    
     
     def bind(self):
         glUseProgram(self.program_id)

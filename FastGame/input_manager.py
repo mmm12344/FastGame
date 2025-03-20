@@ -1,7 +1,7 @@
 import pygame
 
-class InputAxisBase:
-    def __init__(self, positive_direction=[], negative_direction=[], snap=False, sensitivity=0.5):
+class InputAxis:
+    def __init__(self, positive_direction=[], negative_direction=[], snap=False, sensitivity=0.7):
         self.positive_direction = positive_direction
         self.negative_direction = negative_direction
         self.snap = snap
@@ -25,11 +25,13 @@ class InputAxisBase:
         
             
 
-class Input:
-    def __init__(self, input_axes = {}):
+class InputManager:
+    def __init__(self):
         self.quit = False
-        self.input_axes = input_axes
-        self.internal_data = {}
+        
+        self.input_axes = {}
+        
+        self.pressed_keys = set()
         
     def add_axis(self, axis_name, axis_obj):
         self.input_axes[axis_name] = axis_obj
@@ -37,19 +39,18 @@ class Input:
     def remove_axis(self, axis_name):
         del self.input_axes[axis_name]
         
-    def update(self):
-        pressed_keys = set()
+    def update(self, delta_time):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.quit = True
                 return
             elif event.type == pygame.KEYDOWN:
-                pressed_keys.add(pygame.key.name(event.key))
+                self.pressed_keys.add(pygame.key.name(event.key))
             elif event.type == pygame.KEYUP:
                 key_name = pygame.key.name(event.key)
-                if key_name in pressed_keys:
-                    pressed_keys.remove(key_name)
+                if key_name in self.pressed_keys:
+                    self.pressed_keys.remove(key_name)
                     
         for axis in self.input_axes.values():
-            axis.update(pressed_keys, self.internal_data['delta_time'])
+            axis.update(self.pressed_keys, delta_time)
                 

@@ -1,11 +1,10 @@
-from .game_objects import GameObject
+from .game_objects import GameObject, VisibleGameObject
 from .shader import Shader
 from .components import Transform, Mesh, Material, RenderedComponent
 from OpenGL.GL import *
 import numpy as np
 import pygame
 import ctypes
-from .utils import check_gl_error
 
 class Renderer:
     def __init__(self, game_object, shader):
@@ -47,55 +46,47 @@ class Renderer:
             ]
         }
         
+        self._rendered_components = []
+        self._mesh_component = None
+        
         self._index_size = 0
-        self._intialized = False
         
         
+    def setup(self):
         self.shader.bind()
+        self.get_rendered_components()
+        self.generate_buffers()
+        if isinstance(self.game_object, VisibleGameObject):
+            self.load_buffers()
         
+    def get_rendered_components(self):
+        self._rendered_components = self.game_object.components.get_all(RenderedComponent)
         
-    def get_rendered_components(self, game_object):
-        rendered_components = []
-        for component in game_object.components:
-            if isinstance(component, RenderedComponent):
-                rendered_components.append(component)
-        return rendered_components
+        if isinstance(self.game_object, VisibleGameObject):
+            self._mesh_component = self.game_object.components.get_all(Mesh)[0]
+
+        return self._rendered_components
     
     def render(self):
-        if not self._intialized:
-            if hasattr(self.game_object, 'mesh'):
-                self.generate_buffers()
-                self.load_buffers()
-            self._intialized = True
-            
-            
-        rendered_components = self.get_rendered_components(self.game_object)
         
-        for component in rendered_components:
-            component.setup()
+        for component in self._rendered_components:
+            component.update()
             uniforms = component.set_uniforms()
             if uniforms:
                 self.set_uniforms(uniforms)
-                
-        if hasattr(self.game_object, 'mesh'):
-            print(self.game_object)
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
+        
+        if isinstance(self.game_object, VisibleGameObject):
             glBindVertexArray(self.VAO) 
             glDrawElements(GL_TRIANGLES, self._index_size, GL_UNSIGNED_INT, None)
-            pygame.display.flip()
     
     def load_buffers(self):
         glBindVertexArray(self.VAO)
         glBindBuffer(GL_ARRAY_BUFFER, self.VBO)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.EBO)
-        rendered_components = self.get_rendered_components(self.game_object)
-        for component in rendered_components:
-            buffers = component.set_buffers()
-            if buffers:
-                self.set_buffers(buffers)
+        buffers = self._mesh_component.set_buffers()
+        if buffers:
+            self.set_buffers(buffers)
 
-        
-        
     def generate_buffers(self):
         self.VAO = glGenVertexArrays(1)
         self.VBO = glGenBuffers(1)
@@ -109,25 +100,22 @@ class Renderer:
      
         
     def set_buffers(self, buffers):
-        if 'VBO' in buffers:
-            self.set_VBO(buffers['VBO'])
-            self.set_VBO_layout()
-        if 'EBO' in buffers:
-            self.set_EBO(buffers['EBO'])
-            self._index_size = buffers['EBO'].size
+        self.set_VBO(buffers['VBO'])
+        self.set_VBO_layout(self.VBO_layout)
+        self.set_EBO(buffers['EBO'])
+        self._index_size = len(buffers['EBO'])
     
         
     def set_uniforms(self, uniforms):
         for uniform, value in uniforms.items():
             self.shader.set_uniform(uniform, value)
             
-    def set_VBO_layout(self):
-        stride = self.VBO_layout['stride']
-        data = self.VBO_layout['data']
+    def set_VBO_layout(self, VBO_layout):
+        stride = VBO_layout['stride']
+        data = VBO_layout['data']
         for i in data:
             glVertexAttribPointer(i['index'], i['size'], i['type'], i['normalized'], stride, ctypes.c_void_p(i['offset'] ))
             glEnableVertexAttribArray(i['index'])
-            
             
     def __del__(self):
         if self.VBO:
@@ -137,5 +125,4 @@ class Renderer:
         if self.VAO:
             glDeleteVertexArrays(1, np.array([self.VAO], dtype=np.uint32))
             
-        self.shader.delete()
 
