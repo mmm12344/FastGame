@@ -61,7 +61,7 @@ class Game:
         pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLESAMPLES, 4)
         pygame.display.gl_set_attribute(pygame.GL_CONTEXT_PROFILE_MASK, pygame.GL_CONTEXT_PROFILE_CORE)
         pygame.display.gl_set_attribute(pygame.GL_DEPTH_SIZE, 24)
-        self.screen = pygame.display.set_mode(self.display, display_flags)
+        self.screen = pygame.display.set_mode(self.display, display_flags, vsync=1)
         pygame.display.set_caption(self.title)     
         self.clock = pygame.time.Clock()
         

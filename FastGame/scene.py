@@ -10,12 +10,21 @@ class Scene:
         self.objects = ObjectManager()
     
     def render(self):
+        
+        for game_object in self.objects.get_all(GameObject):
+            if hasattr(game_object, 'renderer'):
+                game_object.renderer.shader.uniforms.clear()
+        
         transparent_objects, opaque_objects = self.objects.get_transparent_opaque_objects()
         invisible_objects = self.objects.get_all(InVisibleGameObject)
         
         transparent_objects = self.objects.sort_backtofront(transparent_objects)
         opaque_objects = self.objects.sort_fronttoback(opaque_objects)
         
+        for game_object in invisible_objects:
+            if hasattr(game_object, 'renderer'):
+                game_object.render()
+
         for game_object in opaque_objects:
             if hasattr(game_object, 'renderer'):
                 game_object.render()
@@ -23,10 +32,8 @@ class Scene:
         for game_object in transparent_objects:
             if hasattr(game_object, 'renderer'):
                 game_object.render()
-                
-        for game_object in invisible_objects:
-            if hasattr(game_object, 'renderer'):
-                game_object.render()
+            
+        
     
     def start(self):
         pass

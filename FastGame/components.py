@@ -111,15 +111,25 @@ class Transform(RenderedComponent):
         return glm.distance(glm.vec3(self.position['x'], self.position['y'], self.position['z']), glm.vec3(x, y, z))
         
     def set_uniforms(self):
-        return {"model": np.array(self._model, dtype=np.float32)}
+        model = glm.scale(self._model, glm.vec3(self.scale['x'], self.scale['y'], self.scale['z']))
+        return {"model": np.array(model, dtype=np.float32)}
     
     
-class LightTransform(Transform):
+class DirectionalLightTransform(Transform):
     def set_uniforms(self):
         return {
-            'light.position': np.array([self.position['x'], 
-                                        self.position['y'], 
-                                        self.position['z']], dtype=np.float32)
+        }
+        
+class PointLightTransform(Transform):
+    def set_uniforms(self):
+        return {
+            'point_light[n].position': np.array(list(self.position.values()), dtype=np.float32)
+        }
+        
+class SpotLightTransform(Transform):
+    def set_uniforms(self):
+        return {
+            'spot_light[n].position': np.array(list(self.position.values()), dtype=np.float32)
         }
         
         
@@ -160,12 +170,15 @@ class Mesh(RenderedComponent):
 
 
 class Material(RenderedComponent):
-    def __init__(self, color=Color("C0C0C0"), alpha=1.0,
-                 ambient_light=0.3, diffuse_reflection=0.7,
-                 specular_reflection=1, shininess = 100, wireframe=False, *args, **kwargs):
+    def __init__(self, color=None, alpha=1.0,
+                 ambient_light=0.1, diffuse_reflection=0.7,
+                 specular_reflection=0, shininess = 32, wireframe=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._color = None
-        self.color = color
+        if color is None:
+           self.color = Color('#C0C0C0')
+        else: 
+            self.color = color
         self.alpha = alpha
         self.ambient_light = ambient_light
         self.diffuse_reflection = diffuse_reflection
@@ -263,18 +276,70 @@ class Texture(RenderedComponent):
         
     # def set_uniforms(self):
         
-class LightSource(RenderedComponent):
-    def __init__(self, light_type='point', color=Color("FFFFFF"), *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if light_type not in ['point', 'directional', 'spot']:
-            raise ValueError("Light type must be one of: ['point', 'directional', 'spot']")
         
-        self.light_type = light_type
-        self.color = color
+class DirectionalLightSource(RenderedComponent):
+    def __init__(self, color=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.direction = {'x': 0, 'y': -1, 'z': 0}
+        if color is None:
+           self.color = Color('#FFFFFF')
+        else: 
+            self.color = color
         
     def set_uniforms(self):
         return {
-            'light.color': [*self.color.color_in_rgb],
+            'use_directional_light' : True,
+            'directional_light.direction': np.array(list(self.direction.values()), dtype=np.float32),
+            'directional_light.color': np.array(self.color.color_in_rgb, dtype=np.float32)
+        }
+        
+class PointLightSource(RenderedComponent):
+    def __init__(self, color=None, constant=0, linear=0, quadratic=0.05,*args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if color is None:
+           self.color = Color('#FFFFFF')
+        else: 
+            self.color = color
+        self.constant = constant
+        self.linear = linear
+        self.quadratic =  quadratic
+        
+    def set_uniforms(self):
+        return {
+            'use_point_light': True,
+            'point_light[n].color': np.array(self.color.color_in_rgb, dtype=np.float32),
+            'point_light[n].constant': float(self.constant),
+            'point_light[n].linear': float(self.linear),
+            'point_light[n].quadratic': float(self.quadratic),
+            'point_light_num': 'num(point_light.color)',
+        }
+        
+        
+class SpotLightSource(RenderedComponent):
+    def __init__(self, color=None, constant=0, linear=0, quadratic=0.05, cutoff=30, outer_cutoff=35, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if color is None:
+           self.color = Color('#FFFFFF')
+        else: 
+            self.color = color
+        self.direction = {'x': 0, 'y': -1, 'z': 0}
+        self.constant = constant
+        self.linear = linear
+        self.quadratic = quadratic
+        self.cutoff = cutoff
+        self.outer_cutoff = outer_cutoff
+        
+    def set_uniforms(self):
+        return {
+            'use_spot_light': True,
+            'spot_light[n].color': np.array(self.color.color_in_rgb, dtype=np.float32),
+            'spot_light[n].direction': np.array(list(self.direction.values()), dtype=np.float32),
+            'spot_light[n].constant': float(self.constant),
+            'spot_light[n].linear': float(self.linear),
+            'spot_light[n].quadratic': float(self.quadratic),
+            'spot_light[n].cutOff': math.cos(math.radians(self.cutoff)),
+            'spot_light[n].outerCutOff': math.cos(math.radians(self.outer_cutoff)),
+            'spot_light_num': 'num(spot_light.color)',
         }
         
 class CameraLens(RenderedComponent):

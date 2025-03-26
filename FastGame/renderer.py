@@ -6,6 +6,9 @@ import numpy as np
 import pygame
 import ctypes
 
+
+
+
 class Renderer:
     def __init__(self, game_object, shader):
         if not isinstance(shader, Shader):
@@ -108,7 +111,7 @@ class Renderer:
         
     def set_uniforms(self, uniforms):
         for uniform, value in uniforms.items():
-            self.shader.set_uniform(uniform, value)
+            self.shader.uniforms.set(uniform, value)
             
     def set_VBO_layout(self, VBO_layout):
         stride = VBO_layout['stride']

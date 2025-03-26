@@ -1,20 +1,36 @@
 from OpenGL.GL import *
 import numpy as np  
 import os
+import regex as re
 
-class Shader:
-    def __init__(self, vertex_shader_path, fragment_shader_path):
-        self.vertex_shader_path = os.path.join(os.path.dirname(__file__), vertex_shader_path)
-        self.fragement_shader_path = os.path.join(os.path.dirname(__file__), fragment_shader_path)
-        self.vertex_shader_source = ''
-        self.fragement_shader_source = ''
-        self.program_id = None
-       
+
+class UniformManager:
+    def __init__(self, program_id):
+        self.program_id = program_id
+        self._list_key_indexes = {}
+    
         
-        self.compile()
-        
-    def set_uniform(self, uniform_name, value):
+    def set(self, uniform:str, value):
+        if '[n]' in uniform:
+            if uniform.replace('[n]', '') not in self._list_key_indexes:
+                index = 0
+            else:
+                index = self._list_key_indexes[uniform.replace('[n]', '')]
+            self._list_key_indexes[uniform.replace('[n]', '')] = index + 1
+            uniform = uniform.replace('[n]', f'[{index}]')
+            
+        else:
+            if type(value) == str:
+                matched = re.match("num\((.+)\)", value)
+                if matched:
+                    # print(self._list_key_indexes)
+                    value = self._list_key_indexes[matched.group(1)]
+            
+        self.set_directly(uniform, value)
+            
+    def set_directly(self, uniform_name, value):
         location = glGetUniformLocation(self.program_id, uniform_name)
+        # print(uniform_name, location)
         if isinstance(value, int):
             glUniform1i(location, value)
         elif isinstance(value, float):
@@ -64,8 +80,25 @@ class Shader:
                     raise ValueError("Unsupported matrix shape: " + str(arr.shape))
         else:
             raise TypeError("Unsupported uniform type: " + str(type(value)))
+            
+    def clear(self):
+        self._list_key_indexes.clear()
+            
+    def __del__(self):
+        self.clear()
 
-                
+
+
+class Shader:
+    def __init__(self, vertex_shader_path, fragment_shader_path):
+        self.vertex_shader_path = os.path.join(os.path.dirname(__file__), vertex_shader_path)
+        self.fragement_shader_path = os.path.join(os.path.dirname(__file__), fragment_shader_path)
+        self.vertex_shader_source = ''
+        self.fragement_shader_source = ''
+        self.program_id = None
+        self.compile()
+        self.uniforms = UniformManager(self.program_id)
+        
     def get_attribute_location(self, attribute_name):
         return glGetAttribLocation(self.program_id, attribute_name)
 

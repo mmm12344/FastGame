@@ -163,17 +163,38 @@ class Cylinder(VisibleGameObject):
       
 
 
-class Light(InVisibleGameObject):
+class DirectionalLight(InVisibleGameObject):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.transform = LightTransform(game_object=self)
-        self.light_source = LightSource(game_object=self)
+        
+        self.transform = DirectionalLightTransform(game_object=self)
+        self.light_source = DirectionalLightSource(game_object=self)
 
         self.components.add('transform', self.transform)
         self.components.add('light_source', self.light_source)
 
-        
 
+class PointLight(InVisibleGameObject):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.transform = PointLightTransform(game_object=self)
+        self.light_source = PointLightSource(game_object=self)
+
+        self.components.add('transform', self.transform)
+        self.components.add('light_source', self.light_source)
+        
+        
+class SpotLight(InVisibleGameObject):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.transform = SpotLightTransform(game_object=self)
+        self.light_source = SpotLightSource(game_object=self)
+
+        self.components.add('transform', self.transform)
+        self.components.add('light_source', self.light_source)
+        
 
 class Camera(InVisibleGameObject):
     def __init__(self, *args, **kwargs):
@@ -184,10 +205,6 @@ class Camera(InVisibleGameObject):
         self.components.add('transform', self.transform)
         self.components.add('lens', self.lens)
 
-        
-        
-        
-        
   
 from .components import *
 from .renderer import Renderer
