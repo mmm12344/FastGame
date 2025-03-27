@@ -10,6 +10,7 @@ class MeshParser:
         self.normals = np.array([], dtype=np.float32)
         self.indices = np.array([], dtype=np.int32)
         self.vertices = np.array([], dtype=np.float32)
+        self.is_3d = True
         
         if filename:
             self.load(filename)
@@ -22,8 +23,12 @@ class MeshParser:
         self.indices = mesh.faces.astype(np.int32)
         self.normals = mesh.vertex_normals.astype(np.float32)
         
+        bounds_min, bounds_max = mesh.bounds
+        if bounds_max[1] == bounds_min[1]:
+            self.is_3d = False
+        else:
+            self.is_3d = True
         
-        print(mesh.visual)
         if hasattr(mesh.visual, 'uv') and mesh.visual.uv is not None and not np.allclose(mesh.visual.uv, 0):
             self.texture_coords = mesh.visual.uv.astype(np.float32)
         else:

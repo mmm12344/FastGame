@@ -166,6 +166,12 @@ class Mesh(RenderedComponent):
             'VBO': self.mesh.vertices.flatten(),
             'EBO': self.mesh.indices.flatten()
         }
+        
+    def update(self):
+        if self._mesh.is_3d:
+            glEnable(GL_CULL_FACE)
+        else:
+            glDisable(GL_CULL_FACE)
 
 
 
@@ -259,7 +265,6 @@ class Texture(RenderedComponent):
         
     def set_uniforms(self):
         if self.active:
-            print(self._texture_id)
             return {
                 'texture_repeat': np.array([self.repeat_x, self.repeat_y], dtype=np.float32),
                 'use_texture': True,
