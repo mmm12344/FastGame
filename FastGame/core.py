@@ -70,7 +70,6 @@ class Game:
         glDepthFunc(GL_LESS)
         glCullFace(GL_FRONT) 
         glFrontFace(GL_CW)
-        glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         glDepthMask(GL_TRUE)
         glDepthFunc(GL_LESS)

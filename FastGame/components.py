@@ -73,45 +73,94 @@ class ComponentManager:
 class RenderedComponent(ComponentBase):
     def set_uniforms(self):
         return {}
+    def setup(self):
+        pass
     
 
 class Transform(RenderedComponent):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.position = {'x': 0, 'y': 0, 'z': 0}
-        self.rotation = {'x': 0, 'y': 0, 'z': 0}
-        self.scale = {'x': 1, 'y': 1, 'z': 1}
-        
+        self._position = {'x': 0, 'y': 0, 'z': 0}
+        self._rotation = {'x': 0, 'y': 0, 'z': 0}
+        self._scale = {'x': 0, 'y': 0, 'z': 0}
         self._model = glm.mat4(1.0)
-        
+        self.set_position(0, 0, 0)
+        self.set_rotation(0, 0, 0)
+        self.set_scale(1, 1, 1)
     
-    def translate(self, x=0, y=0, z=0):
-        self.position['x'] += x
-        self.position['y'] += y
-        self.position['z'] += z
+    def get_position(self):
+        return self._position
+    
+    def set_position(self, x=None, y=None, z=None):
+        delta_x, delta_y, delta_z = 0, 0, 0        
+        if x != None:
+            delta_x = x - self._position['x']
+            self._position['x'] = x
+        if y != None:
+            delta_y = y - self._position['y']
+            self._position['y'] = y
+        if z != None:
+            delta_z = z - self._position['z']
+            self._position['z'] = z
         
         translation = glm.mat4(1.0)
-        translation = glm.translate(translation, glm.vec3(x, y, z))
+        translation = glm.translate(translation, glm.vec3(delta_x, delta_y, delta_z))
+        self._translate_model(translation)
         
-        self._model = translation * self._model
-        
-    def rotate(self, x=0, y=0, z=0):
-        self.rotation['x'] += x
-        self.rotation['y'] += y
-        self.rotation['z'] += z
+    def get_rotation(self):
+        return self._rotation
+    
+    def set_rotation(self, x=None, y=None, z=None):
+   
+        delta_x, delta_y, delta_z = 0, 0, 0        
+        if x != None:
+            delta_x = x - self._rotation['x']
+            self._rotation['x'] = x
+        if y != None:
+            delta_y = y - self._rotation['y']
+            self._rotation['y'] = y
+        if z != None:
+            delta_z = z - self._rotation['z']
+            self._rotation['z'] = z
         
         rotation = glm.mat4(1.0)
-        rotation = glm.rotate(rotation, glm.radians(x), glm.vec3(1, 0, 0))
-        rotation = glm.rotate(rotation, glm.radians(y), glm.vec3(0, 1, 0))
-        rotation = glm.rotate(rotation, glm.radians(z), glm.vec3(0, 0, 1))
+        rotation = glm.rotate(rotation, glm.radians(delta_x), glm.vec3(1, 0, 0))
+        rotation = glm.rotate(rotation, glm.radians(delta_y), glm.vec3(0, 1, 0))
+        rotation = glm.rotate(rotation, glm.radians(delta_z), glm.vec3(0, 0, 1))
+        self._rotate_model(rotation)
         
-        self._model = rotation * self._model
+    def get_scale(self):
+        return self._scale
+    
+    def set_scale(self, x=None, y=None, z=None):     
+        if x != None:
+            self._scale['x'] = x
+        if y != None:
+            self._scale['y'] = y
+        if z != None:
+            self._scale['z'] = z
+            
+        scale = glm.mat4(1.0)
+        scale = glm.scale(scale, glm.vec3(self._scale['x'], self._scale['y'], self._scale['z']))
+        self._model  = self._model * scale
+    
+    def translate(self, x=0, y=0, z=0):
+        self.set_position(self._position['x'] + x, self._position['y'] + y, self._position['z'] + z)
+        
+    def rotate(self, x=0, y=0, z=0):
+        self.set_rotation(self._rotation['x'] + x, self._rotation['y'] + y, self._rotation['z'] + z)
+        
+    def _rotate_model(self, rotation_matrix):
+        self._model = self._model * rotation_matrix
+        
+    def _translate_model(self, translation_matrix):
+        self._model = self._model * translation_matrix
         
     def get_distance_from(self, x=0, y=0, z=0):
-        return glm.distance(glm.vec3(self.position['x'], self.position['y'], self.position['z']), glm.vec3(x, y, z))
-        
+        return glm.distance(glm.vec3(self._position['x'], self._position['y'], self._position['z']), glm.vec3(x, y, z))
+    
     def set_uniforms(self):
-        model = glm.scale(self._model, glm.vec3(self.scale['x'], self.scale['y'], self.scale['z']))
+        model = self._model if self.game_object.parent == None else self.game_object.parent.transform._model *  self._model
         return {"model": np.array(model, dtype=np.float32)}
     
     
@@ -123,23 +172,28 @@ class DirectionalLightTransform(Transform):
 class PointLightTransform(Transform):
     def set_uniforms(self):
         return {
-            'point_light[n].position': np.array(list(self.position.values()), dtype=np.float32)
+            'point_light[n].position': np.array(list(self.get_position().values()), dtype=np.float32)
         }
         
 class SpotLightTransform(Transform):
     def set_uniforms(self):
         return {
-            'spot_light[n].position': np.array(list(self.position.values()), dtype=np.float32)
+            'spot_light[n].position': np.array(list(self.get_position().values()), dtype=np.float32)
         }
         
         
 
         
 class CameraTransform(Transform):
+    def _rotate_model(self, rotation_matrix):
+        self._model = rotation_matrix * self._model
+        
+    def _translate_model(self, translation_matrix):
+        self._model = translation_matrix * self._model
+        
     def set_uniforms(self):
-        view_position = [self.position['x'], self.position['y'], self.position['z']]
         return {"view": np.array(self._model, dtype=np.float32),
-                "view_position": np.array(view_position, dtype=np.float32)}
+                "view_position": np.array(list(self.get_position().values()), dtype=np.float32)}
         
 
 class Mesh(RenderedComponent):
@@ -217,6 +271,13 @@ class Material(RenderedComponent):
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
         else:
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+            
+        if self.alpha < 1:
+            glEnable(GL_BLEND)
+            glDepthMask(GL_FALSE)
+        else:
+            glDisable(GL_BLEND)
+            glDepthMask(GL_TRUE)
 
 
 

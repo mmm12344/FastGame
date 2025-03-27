@@ -8,85 +8,84 @@ class GameObject:
         self.name = name
         self.transform = Transform(game_object=self)
 
-        self._children = []
+        self.parent = None
+        
+        self.objects = ObjectManager(parent=self)
         
         self.renderer = Renderer(game_object=self, shader=shader)
         
         self.components = ComponentManager(game_object=self)
         self.components.add('transform', self.transform)
-
-
-    def add_child(self, game_object):
-        if not isinstance(game_object, GameObject):
-            raise TypeError('Object type must be GameObject')
-        if game_object.name == self.name or game_object.name in [obj.name for obj in self._children]:
-            raise ValueError('Object name is used')
-        self._children.append(game_object)
-
-    def remove_child(self, name):
-        for obj in self._children:
-            if obj.name == name:
-                self._children.remove(obj)
-                return True
-        return False
-
+        
     def start(self):
         self.renderer.setup()
 
     def update(self):
         self.components.update()
-        for child in self._children:
-            child.update()
+        self.objects.update()
 
     def render(self):
         self.renderer.render()
         
 
 class ObjectManager:
-    def __init__(self):
-        self._objects = {}
+    def __init__(self, parent=None):
+        self._objects = []
+        self.parent = parent
         self._camera = None
         
     def add(self, game_object):
         if not isinstance(game_object, GameObject):
             raise TypeError('Object type must be GameObject')
-        if game_object.name in self._objects:
+        if self.get(game_object.name) is not None:
             raise ValueError('Object name is used')
         if isinstance(game_object, Camera):
             if len(self.get_all(Camera)) > 0:
                 raise ValueError('Only one camera is allowed')
             self._camera = game_object
-        self._objects[game_object.name] = game_object
+
+        self._objects.append(game_object)
+        if self.parent is not None:
+            game_object.parent = self.parent
         game_object.start()
         
     def update(self):
-        for game_object in self._objects.values():
+        for game_object in self._objects:
             game_object.update()
         
     def get(self, name):
-        return self._objects.get(name)
+        for obj in self._objects:
+            if obj.name == name:
+                return obj
+            if obj.objects.get(name) is not None:
+                return obj
     
     def get_all(self, class_name=None):
         if class_name is None:
-            return self._objects.values()
-        return [obj for obj in self._objects.values() if isinstance(obj, class_name)]
+            return self._objects
+        game_objects = []
+        for obj in self._objects:
+            if isinstance(obj, class_name):
+                game_objects.append(obj)
+            game_objects.extend(obj.objects.get_all(class_name))
+        return game_objects
     
     def remove(self, name):
         self._objects.pop(name, None)
         
     def remove_all(self, class_name):
-        for key, value in self._objects.items():
-            if isinstance(value, class_name):
-                self._objects.pop(key)
+        for obj in self._objects:
+            if isinstance(obj, class_name):
+                self._objects.pop(obj)
                 
     def sort_backtofront(self, game_objects):
         if self._camera is None:
             raise ValueError('Camera is not found')
         length = len(game_objects)
         for i in range(length):  
-            distance1 = game_objects[i].transform.get_distance_from(*self._camera.transform.position.values())
+            distance1 = game_objects[i].transform.get_distance_from(*self._camera.transform.get_position().values())
             for j in range(i+1, length):
-                distance2=  game_objects[i].transform.get_distance_from(*self._camera.transform.position.values())
+                distance2=  game_objects[i].transform.get_distance_from(*self._camera.transform.get_position().values())
                 if distance1 > distance2:
                     game_objects[i], game_objects[j] = game_objects[j], game_objects[i]
         return game_objects
@@ -96,9 +95,9 @@ class ObjectManager:
             raise ValueError('Camera is not found')
         length = len(game_objects)
         for i in range(length):  
-            distance1 = game_objects[i].transform.get_distance_from(*self._camera.transform.position.values())
+            distance1 = game_objects[i].transform.get_distance_from(*self._camera.transform.get_position().values())
             for j in range(i+1, length):
-                distance2=  game_objects[i].transform.get_distance_from(*self._camera.transform.position.values())
+                distance2=  game_objects[i].transform.get_distance_from(*self._camera.transform.get_position().values())
                 if distance1 < distance2:
                     game_objects[i], game_objects[j] = game_objects[j], game_objects[i]
         return game_objects
