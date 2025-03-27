@@ -121,11 +121,12 @@ class VisibleGameObject(GameObject):
         self.transform = Transform(game_object=self)
         self.mesh = Mesh(game_object=self)
         self.material = Material(game_object=self)
-
+        self.texture = Texture(game_object=self)
 
         self.components.add('transform', self.transform)
         self.components.add('mesh', self.mesh)
         self.components.add('material', self.material)
+        self.components.add('texture', self.texture)
 
         
 class InVisibleGameObject(GameObject):

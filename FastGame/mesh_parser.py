@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import trimesh
+from trimesh.exchange.obj import load_obj
 
 class MeshParser:
     def __init__(self, filename=None):
@@ -15,20 +16,18 @@ class MeshParser:
     
     def load(self, filename):
         full_path = os.path.join(os.path.dirname(__file__), filename)
-        mesh = trimesh.load(full_path, force='mesh')
         
+        mesh = trimesh.load(full_path, force='mesh', process=False)
         self.vertex_positions = mesh.vertices.astype(np.float32)
         self.indices = mesh.faces.astype(np.int32)
+        self.normals = mesh.vertex_normals.astype(np.float32)
         
-        if mesh.vertex_normals is not None:
-            self.normals = mesh.vertex_normals.astype(np.float32)
-        else:
-            self.normals = np.zeros_like(mesh.vertices, dtype=np.float32)
         
-        if hasattr(mesh.visual, 'uv') and mesh.visual.uv is not None:
+        print(mesh.visual)
+        if hasattr(mesh.visual, 'uv') and mesh.visual.uv is not None and not np.allclose(mesh.visual.uv, 0):
             self.texture_coords = mesh.visual.uv.astype(np.float32)
         else:
-            self.texture_coords = np.zeros((mesh.vertices.shape[0], 2), dtype=np.float32)
+            self.texture_coords = np.zeros((len(self.vertex_positions), 2), dtype=np.float32)
         
         vertices_list = []
         for i, pos in enumerate(mesh.vertices):

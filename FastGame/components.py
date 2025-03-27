@@ -161,6 +161,7 @@ class Mesh(RenderedComponent):
         self._mesh = value
         
     def set_buffers(self):
+        # print(self.game_object, self.mesh.vertices)
         return {
             'VBO': self.mesh.vertices.flatten(),
             'EBO': self.mesh.indices.flatten()
@@ -215,66 +216,59 @@ class Material(RenderedComponent):
 
 
 class Texture(RenderedComponent):
-    def __init__(self, texture_path=None, texture_wrapping='repeat',
-                 texture_filtering='linear', *args, **kwargs):
+    def __init__(self, repeat_x = 1, repeat_y = 1, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if texture_wrapping not in ['repeat', 'mirrored_repeat', 'clamp_to_edge', 'clamp_to_border']:
-            raise ValueError("Texture wrapping must be one of: ['repeat', 'mirrored_repeat', 'clamp_to_edge', 'clamp_to_border']")
-        if texture_filtering not in ['linear', 'nearest']:
-            raise ValueError("Texture filtering must be one of: ['linear', 'nearest']")
-        if not texture_path:
-            raise ValueError("Texture path must be set")
-        self._texture_path = texture_path
-        self._texture_wrapping = texture_wrapping
-        self._texture_filtering = texture_filtering
+ 
+        self.repeat_x = repeat_x
+        self.repeat_y = repeat_y
         self._image_data = None
         self._image = None
         self._texture_id = None
-        self.load_texture()
+        self.active = False
         
-    @property
-    def texture_path(self):
-        return self._texture_path
-    @texture_path.setter
-    def texture_path(self, value):
-        self._texture_path = value
-        self.load_texture()
     @property
     def texture_wrapping(self):
         return self._texture_wrapping
     @texture_wrapping.setter
     def texture_wrapping(self, value):
         self._texture_wrapping = value
-    @property
-    def texture_filtering(self):
-        return self._texture_filtering
-    @texture_filtering.setter
-    def texture_filtering(self, value):
-        self._texture_filtering = value
+
         
         
-    def load_texture(self):
-        image = Image.open(self.texture_path)
+    def load_texture(self, texture_path):
+        image = Image.open(texture_path)
         self._image = image.transpose(Image.FLIP_TOP_BOTTOM)
         self._image_data = np.array(image.convert("RGBA"), dtype=np.uint8)
-            
-
-
-    def update(self):
         self._texture_id = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self._texture_id)
-        
-        wrap_modes = {'repeat': GL_REPEAT, 'mirrored_repeat': GL_MIRRORED_REPEAT, 'clamp_to_edge': GL_CLAMP_TO_EDGE, 'clamp_to_border': GL_CLAMP_TO_BORDER}
-        filter_modes = {'linear': GL_LINEAR, 'nearest': GL_NEAREST}
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap_modes[self.texture_wrapping])
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_modes[self.texture_wrapping])
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter_modes[self.texture_filtering])
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter_modes[self.texture_filtering])
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self._image.width, self._image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, self.image_data)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self._image.width, self._image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, self._image_data)
         glGenerateMipmap(GL_TEXTURE_2D)
         glBindTexture(GL_TEXTURE_2D, 0)
+        self.active = True
+            
+    def update(self):
+        if self.active:
+            
+            glActiveTexture(GL_TEXTURE0)
+            glBindTexture(GL_TEXTURE_2D, self._texture_id)
         
-    # def set_uniforms(self):
+        
+    def set_uniforms(self):
+        if self.active:
+            print(self._texture_id)
+            return {
+                'texture_repeat': np.array([self.repeat_x, self.repeat_y], dtype=np.float32),
+                'use_texture': True,
+                'diffuse_texture': 0
+            }
+        else:
+            return {
+                'use_texture': False
+            }
         
         
 class DirectionalLightSource(RenderedComponent):
@@ -288,9 +282,9 @@ class DirectionalLightSource(RenderedComponent):
         
     def set_uniforms(self):
         return {
-            'use_directional_light' : True,
-            'directional_light.direction': np.array(list(self.direction.values()), dtype=np.float32),
-            'directional_light.color': np.array(self.color.color_in_rgb, dtype=np.float32)
+            'directional_light[n].direction': np.array(list(self.direction.values()), dtype=np.float32),
+            'directional_light[n].color': np.array(self.color.color_in_rgb, dtype=np.float32),
+            'directional_light_num': 'num(point_light.color)',
         }
         
 class PointLightSource(RenderedComponent):

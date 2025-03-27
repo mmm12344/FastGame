@@ -30,7 +30,7 @@ class UniformManager:
             
     def set_directly(self, uniform_name, value):
         location = glGetUniformLocation(self.program_id, uniform_name)
-        # print(uniform_name, location)
+        # print(uniform_name, value, location)
         if isinstance(value, int):
             glUniform1i(location, value)
         elif isinstance(value, float):
