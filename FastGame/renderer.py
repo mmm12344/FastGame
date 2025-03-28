@@ -1,4 +1,4 @@
-from .game_objects import GameObject, VisibleGameObject
+from .game_objects import GameObject, VisibleGameObject, SkyBox
 from .shader import Shader
 from .components import Transform, Mesh, Material, RenderedComponent
 from OpenGL.GL import *
@@ -58,8 +58,8 @@ class Renderer:
     def setup(self):
         self.shader.bind()
         self.get_rendered_components()
-        self.generate_buffers()
         if isinstance(self.game_object, VisibleGameObject):
+            self.generate_buffers()
             self.load_buffers()
         
     def get_rendered_components(self):
@@ -79,8 +79,16 @@ class Renderer:
                 self.set_uniforms(uniforms)
         
         if isinstance(self.game_object, VisibleGameObject):
-            glBindVertexArray(self.VAO) 
+            glBindVertexArray(self.VAO)
             glDrawElements(GL_TRIANGLES, self._index_size, GL_UNSIGNED_INT, None)
+            glBindVertexArray(0)
+        
+        for component in self._rendered_components:
+            component.post_setup()
+            uniforms = component.post_uniforms()
+            if uniforms:
+                self.set_uniforms(uniforms) 
+        
     
     def load_buffers(self):
         glBindVertexArray(self.VAO)

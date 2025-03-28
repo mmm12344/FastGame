@@ -60,14 +60,18 @@ class ObjectManager:
             if obj.objects.get(name) is not None:
                 return obj
     
-    def get_all(self, class_name=None):
+    def get_all(self, class_name=None, except_class_name=None):
         if class_name is None:
             return self._objects
         game_objects = []
         for obj in self._objects:
             if isinstance(obj, class_name):
-                game_objects.append(obj)
-            game_objects.extend(obj.objects.get_all(class_name))
+                if except_class_name is not None:
+                    if not isinstance(obj, except_class_name):
+                        game_objects.append(obj)
+                else:
+                    game_objects.append(obj)
+            game_objects.extend(obj.objects.get_all(class_name, except_class_name))
         return game_objects
     
     def remove(self, name):
@@ -102,10 +106,10 @@ class ObjectManager:
                     game_objects[i], game_objects[j] = game_objects[j], game_objects[i]
         return game_objects
     
-    def get_transparent_opaque_objects(self):
+    def get_transparent_opaque_objects(self, except_class_name=None):
         transparent = []
         opaque = []
-        for game_object in self.get_all(VisibleGameObject):
+        for game_object in self.get_all(VisibleGameObject, except_class_name):
             if game_object.material.alpha < 1:
                 transparent.append(game_object)
             else:
@@ -160,6 +164,15 @@ class Cylinder(VisibleGameObject):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.mesh.mesh  =  MeshParser('meshes/cylinder.obj')
+
+
+class SkyBox(VisibleGameObject):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.texture  =  SkyBoxTexture(game_object=self)
+        self.mesh.mesh = MeshParser('meshes/cuboid.obj')
+        
+        self.components.add('texture', self.texture)
       
 
 

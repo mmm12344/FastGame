@@ -1,9 +1,9 @@
 #version 330 core
 
-
 in vec2 tex_coord;
 in vec3 frag_normal;
 in vec3 frag_position;
+in vec3 skyboxTexCoords;
 
 out vec4 FragColor;
 
@@ -56,7 +56,7 @@ uniform vec3 view_position;
 uniform sampler2D diffuse_texture;
 uniform bool use_texture;
 
-uniform bool use_skybox=false;
+uniform bool use_skybox;
 uniform samplerCube skybox;
 
 
@@ -80,8 +80,8 @@ vec3 CalcSpecular(vec3 normal, vec3 lightDir, vec3 viewDir, vec3 lightColor, flo
 
 vec3 CalcDirectionalLight(DirLight light, vec3 normal, vec3 viewDir) {
     vec3 lightDir = normalize(-light.direction);
-    vec3 ambient  = CalcAmbient(light.color, material.ambient_light);
-    vec3 diffuse  = CalcDiffuse(normal, lightDir, light.color, material.diffuse_reflection);
+    vec3 ambient = CalcAmbient(light.color, material.ambient_light);
+    vec3 diffuse = CalcDiffuse(normal, lightDir, light.color, material.diffuse_reflection);
     vec3 specular = CalcSpecular(normal, lightDir, viewDir, light.color, material.specular_reflection, material.shininess);
     
     return ambient + diffuse + specular;
@@ -93,8 +93,8 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 viewDir) {
     float distance = length(light.position - frag_position);
     float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
     
-    vec3 ambient  = CalcAmbient(light.color, material.ambient_light) * attenuation;
-    vec3 diffuse  = CalcDiffuse(normal, lightDir, light.color, material.diffuse_reflection) * attenuation;
+    vec3 ambient = CalcAmbient(light.color, material.ambient_light) * attenuation;
+    vec3 diffuse = CalcDiffuse(normal, lightDir, light.color, material.diffuse_reflection) * attenuation;
     vec3 specular = CalcSpecular(normal, lightDir, viewDir, light.color, material.specular_reflection, material.shininess) * attenuation;
     
     return ambient + diffuse + specular;
@@ -110,8 +110,8 @@ vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 viewDir) {
     float distance = length(light.position - frag_position);
     float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
     
-    vec3 ambient  = CalcAmbient(light.color, material.ambient_light) * attenuation;
-    vec3 diffuse  = CalcDiffuse(normal, lightDir, light.color, material.diffuse_reflection) * intensity * attenuation;
+    vec3 ambient = CalcAmbient(light.color, material.ambient_light) * attenuation;
+    vec3 diffuse = CalcDiffuse(normal, lightDir, light.color, material.diffuse_reflection) * intensity * attenuation;
     vec3 specular = CalcSpecular(normal, lightDir, viewDir, light.color, material.specular_reflection, material.shininess) * intensity * attenuation;
     
     return ambient + diffuse + specular;
@@ -120,9 +120,9 @@ vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 viewDir) {
 
 void main() {
 
-    if (use_skybox){
-        FragColor = texture(skybox, frag_position);
-    } else{
+    if (use_skybox) {
+        FragColor = texture(skybox, skyboxTexCoords);
+    } else {
         vec3 norm = normalize(frag_normal);
         vec3 viewDir = normalize(view_position - frag_position);
         vec3 lighting = vec3(0.0);
@@ -142,6 +142,6 @@ void main() {
         vec3 baseColor = use_texture ? texture(diffuse_texture, tex_coord).rgb : material.vertex_color.rgb;
         vec4 frag_color = vec4(baseColor * lighting, material.vertex_color.a);
         float gamma = 1.2;
-        FragColor = vec4(pow(frag_color.rgb, vec3(1.0/gamma)), frag_color.a);
+        FragColor = vec4(pow(frag_color.rgb, vec3(1.0 / gamma)), frag_color.a);
     }
 }

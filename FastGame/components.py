@@ -8,6 +8,7 @@ from .mesh_parser import MeshParser
 from .utils import Color
 from .game_objects import GameObject
 from pyglm import glm
+from .utils import check_gl_error
 
 from . import internal_data
 
@@ -75,6 +76,10 @@ class RenderedComponent(ComponentBase):
         return {}
     def setup(self):
         pass
+    def post_setup(self):
+        pass
+    def post_uniforms(self):
+        return {}
     
 
 class Transform(RenderedComponent):
@@ -319,9 +324,12 @@ class Texture(RenderedComponent):
             
     def update(self):
         if self.active:
-            
             glActiveTexture(GL_TEXTURE0)
             glBindTexture(GL_TEXTURE_2D, self._texture_id)
+            
+    def post_setup(self):
+        glBindTexture(GL_TEXTURE_2D, 0)
+        pass
         
         
     def set_uniforms(self):
@@ -419,6 +427,69 @@ class CameraLens(RenderedComponent):
             'projection': self.compute_perspective_projection_matrix()
         }
         
+        
+class SkyBoxTexture(RenderedComponent):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._texture_id = None
+        self.active = False
+        
+    def load_texture(self, texture_paths):
+        if len(texture_paths) != 6:
+            raise ValueError("Skybox texture must have 6 faces")
+        image_data = []
+        images = []
+        for texture_path in texture_paths:
+            image = Image.open(texture_path)
+            images.append(image.transpose(Image.FLIP_TOP_BOTTOM))
+            image_data.append(np.array(image.convert("RGB"), dtype=np.uint8))
+        
+        
+        self._texture_id = glGenTextures(1)
+        glBindTexture(GL_TEXTURE_CUBE_MAP, self._texture_id)
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE)
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        i = 0
+        for image, data in zip(images, image_data):
+            if image.width != images[0].width or image.height != images[0].height:
+                raise ValueError("All skybox faces must have the same dimensions")
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, image.width, image.height, 0, GL_RGB, GL_UNSIGNED_BYTE, data)
+            i += 1
+            
+        glBindTexture(GL_TEXTURE_CUBE_MAP, 0)
+        
+        self.active = True
+        
+    def update(self):
+        if self.active:
+            glDepthFunc(GL_LEQUAL)
+            glDisable(GL_CULL_FACE)
+            glActiveTexture(GL_TEXTURE1)
+            glBindTexture(GL_TEXTURE_CUBE_MAP, self._texture_id)
+            
+    def post_setup(self):
+        glDepthFunc(GL_LESS)
+        glEnable(GL_CULL_FACE)
+        
+    def post_uniforms(self):
+        return {
+            'use_skybox': False
+        }
+        
+        
+    def set_uniforms(self):
+        if self.active:
+            return {
+                'skybox': 1,
+                'use_skybox': True
+            }
+        else:
+            return {
+                'use_skybox': False
+            }
 
 
 
