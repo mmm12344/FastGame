@@ -190,6 +190,9 @@ class SpotLightTransform(Transform):
 
         
 class CameraTransform(Transform):
+    
+    
+    
     def _rotate_model(self, rotation_matrix):
         self._model = rotation_matrix * self._model
         
@@ -197,7 +200,9 @@ class CameraTransform(Transform):
         self._model = translation_matrix * self._model
         
     def set_uniforms(self):
-        return {"view": np.array(self._model, dtype=np.float32),
+        model = self._model if self.game_object.parent == None else self.game_object.parent.transform._model *  self._model
+        model = glm.inverse(model)
+        return {"view": np.array(model, dtype=np.float32),
                 "view_position": np.array(list(self.get_position().values()), dtype=np.float32)}
         
 
@@ -411,20 +416,32 @@ class SpotLightSource(RenderedComponent):
         }
         
 class CameraLens(RenderedComponent):
-    def __init__(self, FOV=45, near=0.1, far=100, *args, **kwargs):
+    def __init__(self, FOV=45, near=0.1, far=100, perspective=True,*args, **kwargs):
         super().__init__(*args, **kwargs)
         self.FOV = FOV
         self.near = near
         self.far = far
+        self.perspective = perspective
         
     def compute_perspective_projection_matrix(self):
         aspect_ratio = internal_data.window_width / internal_data.window_height
         return np.array(glm.perspective(glm.radians(self.FOV), aspect_ratio, self.near, self.far), dtype=np.float32)
+    
+    def compute_orthographic_projection_matrix(self):
+        scale = 100
+        left = -internal_data.window_width / scale
+        right = internal_data.window_width / scale
+        top = internal_data.window_height / scale
+        bottom = -internal_data.window_height / scale
+        return np.array(glm.ortho(left, right, bottom, top, self.near, self.far), dtype=np.float32)
+        
            
         
     def set_uniforms(self):
+        projection = self.compute_perspective_projection_matrix() if self.perspective else self.compute_orthographic_projection_matrix()
         return {
-            'projection': self.compute_perspective_projection_matrix()
+            'projection': projection,
+            'perspective_projection': self.perspective,
         }
         
         
@@ -466,13 +483,15 @@ class SkyBoxTexture(RenderedComponent):
     def update(self):
         if self.active:
             glDepthFunc(GL_LEQUAL)
-            glDisable(GL_CULL_FACE)
+            # glDisable(GL_CULL_FACE)
+            glCullFace(GL_BACK)
             glActiveTexture(GL_TEXTURE1)
             glBindTexture(GL_TEXTURE_CUBE_MAP, self._texture_id)
             
     def post_setup(self):
         glDepthFunc(GL_LESS)
-        glEnable(GL_CULL_FACE)
+        # glEnable(GL_CULL_FACE)
+        glCullFace(GL_FRONT)
         
     def post_uniforms(self):
         return {

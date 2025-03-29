@@ -32,7 +32,6 @@ class ObjectManager:
     def __init__(self, parent=None):
         self._objects = []
         self.parent = parent
-        self._camera = None
         
     def add(self, game_object):
         if not isinstance(game_object, GameObject):
@@ -83,25 +82,23 @@ class ObjectManager:
                 self._objects.pop(obj)
                 
     def sort_backtofront(self, game_objects):
-        if self._camera is None:
-            raise ValueError('Camera is not found')
+        camera = self.get_all(Camera)[0]
         length = len(game_objects)
         for i in range(length):  
-            distance1 = game_objects[i].transform.get_distance_from(*self._camera.transform.get_position().values())
+            distance1 = game_objects[i].transform.get_distance_from(*camera.transform.get_position().values())
             for j in range(i+1, length):
-                distance2=  game_objects[i].transform.get_distance_from(*self._camera.transform.get_position().values())
+                distance2=  game_objects[i].transform.get_distance_from(*camera.transform.get_position().values())
                 if distance1 > distance2:
                     game_objects[i], game_objects[j] = game_objects[j], game_objects[i]
         return game_objects
     
     def sort_fronttoback(self, game_objects):
-        if self._camera is None:
-            raise ValueError('Camera is not found')
+        camera = self.get_all(Camera)[0]
         length = len(game_objects)
         for i in range(length):  
-            distance1 = game_objects[i].transform.get_distance_from(*self._camera.transform.get_position().values())
+            distance1 = game_objects[i].transform.get_distance_from(*camera.transform.get_position().values())
             for j in range(i+1, length):
-                distance2=  game_objects[i].transform.get_distance_from(*self._camera.transform.get_position().values())
+                distance2=  game_objects[i].transform.get_distance_from(*camera.transform.get_position().values())
                 if distance1 < distance2:
                     game_objects[i], game_objects[j] = game_objects[j], game_objects[i]
         return game_objects

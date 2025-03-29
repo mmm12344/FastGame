@@ -6,6 +6,8 @@ layout(location = 2) in vec3 a_vertex_normal;
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
+uniform bool perspective_projection=true;
+
 uniform vec2 texture_repeat;
 uniform bool use_skybox;
 
@@ -17,7 +19,12 @@ out vec3 skyboxTexCoords;
 void main() {
     if (use_skybox) {
         mat4 view_no_translation = mat4(mat3(view));
-        vec4 skybox_pos = projection * view_no_translation * vec4(a_vertex_position, 1.0);
+        vec4 skybox_pos;
+        if(perspective_projection){
+            skybox_pos = projection * view_no_translation * vec4(a_vertex_position, 1.0);
+        }else{
+            skybox_pos = view_no_translation * vec4(a_vertex_position, 1.0);
+        }
         gl_Position = skybox_pos.xyww;
         skyboxTexCoords = a_vertex_position;
     } else {
