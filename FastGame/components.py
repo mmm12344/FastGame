@@ -96,18 +96,34 @@ class Transform(RenderedComponent):
 
     def get_global_model_matrix(self):
         if self.game_object.parent is None:
-            return self._model
+            return self.get_model_matrix()
         else:
             parent_model = self.game_object.parent.transform.get_global_model_matrix()
-            return parent_model * self._model
+            return parent_model * self.get_model_matrix()
+        
+    def get_global_view_matrix(self):
+        model = self.get_global_model_matrix()
+        return glm.inverse(model)
+    
+    def get_global_position(self):
+        if self.game_object.parent is None:
+            return self.get_position()
+        else:
+            parent_pos = self.game_object.parent.transform.get_global_position()
+            return parent_pos + self.get_position()
+    
+    def get_global_rotation(self):
+        if self.game_object.parent is None:
+            return self.get_rotation()
+        else:
+            parent_rotation = self.game_object.parent.transform.get_global_rotation()
+            return glm.normalize(parent_rotation * self.get_rotation())
+        
+    def get_model_matrix(self):
+        return self._model
 
     def get_position(self):
         return self._position
-
-    def get_global_position(self):
-        model = self.get_global_model_matrix()
-        position = glm.vec3(model[3][0], model[3][1], model[3][2])
-        return position
 
     def set_position(self, vec3: glm.vec3):
         self._translate = vec3
