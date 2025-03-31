@@ -88,7 +88,7 @@ class Transform(RenderedComponent):
         super().__init__(*args, **kwargs)
         self._position = glm.vec3(0, 0, 0)
         self._rotation = glm.quat(1, 0, 0, 0)
-        self._scale = glm.vec3(1, 1, 1)
+        self._scale = glm.vec3(0, 0, 0)
         self._model = glm.mat4(1.0)
         self.set_position(glm.vec3(0, 0, 0))
         self.set_rotation(glm.quat(1, 0, 0, 0))
@@ -126,28 +126,28 @@ class Transform(RenderedComponent):
         return self._position
 
     def set_position(self, vec3: glm.vec3):
+        self._translate_model_matrix(vec3 - self._position)
         self._position = vec3
-        self._update_model_matrix()
+        
 
     def get_rotation(self):
         return self._rotation
 
     def set_rotation(self, quat: glm.quat):
+        self._rotate_model_matrix(glm.normalize(quat) * glm.inverse(self._rotation))
         self._rotation = glm.normalize(quat)
-        self._update_model_matrix()
         
     def set_rotation_euler(self, vec3 : glm.vec3):
         rad = glm.radians(vec3)
         quat = glm.quat(rad)
         self.set_rotation(quat)
-        
-
+    
     def get_scale(self):
         return self._scale
 
     def set_scale(self, vec3: glm.vec3):
+        self._scale_model_matrix(vec3)
         self._scale = vec3
-        self._update_model_matrix()
 
     def translate(self, vec3: glm.vec3):
         self._position += vec3
@@ -162,12 +162,6 @@ class Transform(RenderedComponent):
         quat = glm.quat(rad)
         self.rotate(quat)
         
-    def _update_model_matrix(self):
-        translation = glm.translate(glm.mat4(1.0), self._position)
-        rotation = glm.mat4_cast(self._rotation)
-        scale = glm.scale(glm.mat4(1.0), self._scale)
-        self._model = translation * rotation * scale
-        
     def _rotate_model_matrix(self, quat: glm.quat):
         rotation = glm.mat4_cast(quat)
         self._model = self._model * rotation
@@ -175,6 +169,10 @@ class Transform(RenderedComponent):
     def _translate_model_matrix(self, vec3: glm.vec3):
         translation = glm.translate(glm.mat4(1.0), vec3)
         self._model = self._model * translation
+        
+    def _scale_model_matrix(self, vec3: glm.vec3):
+        scale = glm.scale(glm.mat4(1.0), vec3)
+        self._model = self._model * scale
 
     def get_distance_from(self, vec3: glm.vec3):
         return glm.distance(self._position, vec3)
