@@ -115,12 +115,10 @@ class ObjectManager:
 class VisibleGameObject(GameObject):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.transform = Transform(game_object=self)
         self.mesh = Mesh(game_object=self)
         self.material = Material(game_object=self)
         self.texture = Texture(game_object=self)
 
-        self.components.add('transform', self.transform)
         self.components.add('mesh', self.mesh)
         self.components.add('material', self.material)
         self.components.add('texture', self.texture)
@@ -169,19 +167,25 @@ class SkyBox(VisibleGameObject):
         self.components.add('texture', self.texture)
       
 
+class Light(InVisibleGameObject):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-class DirectionalLight(InVisibleGameObject):
+
+class DirectionalLight(Light):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
         self.transform = DirectionalLightTransform(game_object=self)
         self.light_source = DirectionalLightSource(game_object=self)
+        self.shadows = LightSourceShadow(game_object=self, perspective=False)
 
         self.components.add('transform', self.transform)
         self.components.add('light_source', self.light_source)
+        self.components.add('shadows', self.shadows)
 
 
-class PointLight(InVisibleGameObject):
+class PointLight(Light):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
@@ -192,15 +196,17 @@ class PointLight(InVisibleGameObject):
         self.components.add('light_source', self.light_source)
         
         
-class SpotLight(InVisibleGameObject):
+class SpotLight(Light):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
         self.transform = SpotLightTransform(game_object=self)
         self.light_source = SpotLightSource(game_object=self)
+        self.shadows = LightSourceShadow(game_object=self, perspective=True)
 
         self.components.add('transform', self.transform)
         self.components.add('light_source', self.light_source)
+        self.components.add('shadows', self.shadows)
         
 
 class Camera(InVisibleGameObject):

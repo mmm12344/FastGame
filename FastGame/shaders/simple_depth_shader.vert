@@ -8,7 +8,9 @@ uniform mat4 light_projection;
 uniform mat4 light_view;
 
 
+
 void main()
 {
-    gl_position = light_projection * light_view * model * vec4(a_vertex_position, 1.0);
+    gl_Position = light_projection * light_view * model * vec4(a_vertex_position, 1.0);
+        // gl_Position = vec4(a_vertex_position, 1.0);
 }

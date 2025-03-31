@@ -192,7 +192,10 @@ class Transform(RenderedComponent):
 class DirectionalLightTransform(Transform):
     def set_uniforms(self):
         return {
-            'ligh_view': np.array(list(self.get_global_view_matrix()), dtype=np.float32)
+            'light_view': np.array(list(self.get_global_view_matrix()), dtype=np.float32),
+            'directional_light[n].direction': np.array(self.get_rotation() * glm.vec3(0,0,1), dtype=np.float32),
+            'light_view': np.array(self.get_global_view_matrix(), dtype=np.float32)
+       
         }
         
 class PointLightTransform(Transform):
@@ -205,7 +208,9 @@ class SpotLightTransform(Transform):
     def set_uniforms(self):
         return {
             'spot_light[n].position': np.array(list(self.get_global_position()), dtype=np.float32),
-            'ligh_view': np.array(list(self.get_global_view_matrix()), dtype=np.float32)
+            'spot_light[n].direction': np.array(self.get_rotation() * glm.vec3(0,0,1), dtype=np.float32),
+            'light_view': np.array(self.get_global_view_matrix(), dtype=np.float32)
+            # 'light_view': np.array(glm.lookAt(glm.vec3(-2.0, 4.0, -1.0), glm.vec3(0.0, 0.0, 0.0), glm.vec3(0.0, 1.0, 0.0)), dtype=np.float32)
         }
         
         
@@ -365,7 +370,6 @@ class Texture(RenderedComponent):
 class DirectionalLightSource(RenderedComponent):
     def __init__(self, color=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.direction = {'x': 0, 'y': -1, 'z': 0}
         if color is None:
            self.color = Color('#FFFFFF')
         else: 
@@ -373,9 +377,8 @@ class DirectionalLightSource(RenderedComponent):
         
     def set_uniforms(self):
         return {
-            'directional_light[n].direction': np.array(list(self.direction.values()), dtype=np.float32),
             'directional_light[n].color': np.array(self.color.color_in_rgb, dtype=np.float32),
-            'directional_light_num': 'num(point_light.color)',
+            'directional_light_num': 'num(directional_light.color)',
         }
         
 class PointLightSource(RenderedComponent):
@@ -407,7 +410,6 @@ class SpotLightSource(RenderedComponent):
            self.color = Color('#FFFFFF')
         else: 
             self.color = color
-        self.direction = {'x': 0, 'y': -1, 'z': 0}
         self.constant = constant
         self.linear = linear
         self.quadratic = quadratic
@@ -418,7 +420,6 @@ class SpotLightSource(RenderedComponent):
         return {
             'use_spot_light': True,
             'spot_light[n].color': np.array(self.color.color_in_rgb, dtype=np.float32),
-            'spot_light[n].direction': np.array(list(self.direction.values()), dtype=np.float32),
             'spot_light[n].constant': float(self.constant),
             'spot_light[n].linear': float(self.linear),
             'spot_light[n].quadratic': float(self.quadratic),
@@ -429,59 +430,72 @@ class SpotLightSource(RenderedComponent):
         
         
 class LightSourceShadow(RenderedComponent):
-    def __init__(self, FOV=45, near=0.1, far=100, orthographic_scale=100, perspective=True, *args, **kwargs):
+    def __init__(self, FOV=45, near=0.1, far=100, orthographic_size=10, perspective=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.FOV = FOV
         self.near = near
         self.far = far
-        self.orthographic_scale = orthographic_scale
+        self.orthographic_size = orthographic_size
         self.perspective = perspective
+    
+    @property 
+    def aspect_ratio(self):
+        return internal_data.window_width / internal_data.window_height
         
     def compute_perspective_projection_matrix(self):
-        aspect_ratio = internal_data.window_width / internal_data.window_height
-        return np.array(glm.perspective(glm.radians(self.FOV), aspect_ratio, self.near, self.far), dtype=np.float32)
+        return np.array(glm.perspective(glm.radians(self.FOV), self.aspect_ratio, self.near, self.far), dtype=np.float32)
     
     def compute_orthographic_projection_matrix(self):
-        scale = 100
-        left = -internal_data.window_width / scale
-        right = internal_data.window_width / scale
-        top = internal_data.window_height / scale
-        bottom = -internal_data.window_height / scale
+        left = -self.orthographic_size * self.aspect_ratio
+        right = self.orthographic_size * self.aspect_ratio
+        top = self.orthographic_size
+        bottom = self.orthographic_size
         return np.array(glm.ortho(left, right, bottom, top, self.near, self.far), dtype=np.float32)
+        
+    def get_projection_matrix(self):
+        if self.perspective:
+            return self.compute_perspective_projection_matrix()
+        return self.compute_orthographic_projection_matrix()
     
     def set_uniforms(self):
-        projection = self.compute_perspective_projection_matrix() if self.perspective else self.compute_orthographic_projection_matrix()
         return {
-            'light_projection': projection
+            'light_projection': self.get_projection_matrix()
         }
     
     
     
         
 class CameraLens(RenderedComponent):
-    def __init__(self, FOV=45, near=0.1, far=100, orthographic_scale=100, perspective=True,*args, **kwargs):
+    def __init__(self, FOV=45, near=0.1, far=100, orthographic_size=10, perspective=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.FOV = FOV
         self.near = near
         self.far = far
-        self.orthographic_scale = orthographic_scale
+        self.orthographic_size = orthographic_size
         self.perspective = perspective
+    
+    @property 
+    def aspect_ratio(self):
+        return internal_data.window_width / internal_data.window_height
         
     def compute_perspective_projection_matrix(self):
-        aspect_ratio = internal_data.window_width / internal_data.window_height
-        return np.array(glm.perspective(glm.radians(self.FOV), aspect_ratio, self.near, self.far), dtype=np.float32)
+        return np.array(glm.perspective(glm.radians(self.FOV), self.aspect_ratio, self.near, self.far), dtype=np.float32)
     
     def compute_orthographic_projection_matrix(self):
-        left = -internal_data.window_width / self.orthographic_scale
-        right = internal_data.window_width / self.orthographic_scale
-        top = internal_data.window_height / self.orthographic_scale
-        bottom = -internal_data.window_height / self.orthographic_scale
-        return np.array(glm.ortho(left, right, bottom, top, self.near, self.far), dtype=np.float32)     
+        left = -self.orthographic_size * self.aspect_ratio
+        right = self.orthographic_size * self.aspect_ratio
+        top = self.orthographic_size
+        bottom = self.orthographic_size
+        return np.array(glm.ortho(left, right, bottom, top, self.near, self.far), dtype=np.float32)
+        
+    def get_projection_matrix(self):
+        if self.perspective:
+            return self.compute_perspective_projection_matrix()
+        return self.compute_orthographic_projection_matrix()  
         
     def set_uniforms(self):
-        projection = self.compute_perspective_projection_matrix() if self.perspective else self.compute_orthographic_projection_matrix()
         return {
-            'projection': projection,
+            'projection': self.get_projection_matrix(),
             'perspective_projection': self.perspective,
         }
                 
@@ -519,20 +533,17 @@ class SkyBoxTexture(RenderedComponent):
             i += 1
             
         glBindTexture(GL_TEXTURE_CUBE_MAP, 0)
-        
         self.active = True
         
     def update(self):
         if self.active:
             glDepthFunc(GL_LEQUAL)
-            # glDisable(GL_CULL_FACE)
             glCullFace(GL_BACK)
             glActiveTexture(GL_TEXTURE1)
             glBindTexture(GL_TEXTURE_CUBE_MAP, self._texture_id)
             
     def post_setup(self):
         glDepthFunc(GL_LESS)
-        # glEnable(GL_CULL_FACE)
         glCullFace(GL_FRONT)
         
     def post_uniforms(self):

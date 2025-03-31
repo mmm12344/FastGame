@@ -57,7 +57,6 @@ class Renderer:
         
         
     def setup(self):
-        # self.shader.bind()
         self.get_rendered_components()
         if isinstance(self.game_object, VisibleGameObject):
             self.generate_buffers()
@@ -75,21 +74,26 @@ class Renderer:
         
         for component in self._rendered_components:
             component.update()
-            uniforms = component.set_uniforms()
-            if uniforms:
-                self.set_uniforms(uniforms)
+            self.set_component_uniforms(component)
         
-        if isinstance(self.game_object, VisibleGameObject):
-            glBindVertexArray(self.VAO)
-            glDrawElements(GL_TRIANGLES, self._index_size, GL_UNSIGNED_INT, None)
-            glBindVertexArray(0)
+        self.render_directly()
         
         for component in self._rendered_components:
             component.post_setup()
             uniforms = component.post_uniforms()
             if uniforms:
                 self.set_uniforms(uniforms) 
+                
+    def render_directly(self):
+        if isinstance(self.game_object, VisibleGameObject):
+            glBindVertexArray(self.VAO)
+            glDrawElements(GL_TRIANGLES, self._index_size, GL_UNSIGNED_INT, None)
+            glBindVertexArray(0)
         
+    def set_component_uniforms(self, component):
+        uniforms = component.set_uniforms()
+        if uniforms:
+            self.set_uniforms(uniforms)
     
     def load_buffers(self):
         glBindVertexArray(self.VAO)
