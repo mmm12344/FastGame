@@ -1,9 +1,6 @@
 
 class GameObject:
-    def __init__(self, name, shader):
-        
-        if not isinstance(shader, Shader):
-            raise TypeError('Object must be of type Shader')
+    def __init__(self, name):
         
         self.name = name
         self.transform = Transform(game_object=self)
@@ -12,7 +9,7 @@ class GameObject:
         
         self.objects = ObjectManager(parent=self)
         
-        self.renderer = Renderer(game_object=self, shader=shader)
+        self.renderer = Renderer(game_object=self)
         
         self.components = ComponentManager(game_object=self)
         self.components.add('transform', self.transform)
@@ -85,9 +82,9 @@ class ObjectManager:
         camera = self.get_all(Camera)[0]
         length = len(game_objects)
         for i in range(length):  
-            distance1 = game_objects[i].transform.get_distance_from(*camera.transform.get_position().values())
+            distance1 = game_objects[i].transform.get_distance_from(camera.transform.get_position())
             for j in range(i+1, length):
-                distance2=  game_objects[i].transform.get_distance_from(*camera.transform.get_position().values())
+                distance2=  game_objects[i].transform.get_distance_from(camera.transform.get_position())
                 if distance1 > distance2:
                     game_objects[i], game_objects[j] = game_objects[j], game_objects[i]
         return game_objects
@@ -96,9 +93,9 @@ class ObjectManager:
         camera = self.get_all(Camera)[0]
         length = len(game_objects)
         for i in range(length):  
-            distance1 = game_objects[i].transform.get_distance_from(*camera.transform.get_position().values())
+            distance1 = game_objects[i].transform.get_distance_from(camera.transform.get_position())
             for j in range(i+1, length):
-                distance2=  game_objects[i].transform.get_distance_from(*camera.transform.get_position().values())
+                distance2=  game_objects[i].transform.get_distance_from(camera.transform.get_position())
                 if distance1 < distance2:
                     game_objects[i], game_objects[j] = game_objects[j], game_objects[i]
         return game_objects

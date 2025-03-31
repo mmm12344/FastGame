@@ -11,7 +11,8 @@ from pyglm import glm
 from .utils import check_gl_error
 
 from . import internal_data
-
+from pytransform3d.rotations import euler_from_matrix
+from scipy.spatial.transform import Rotation
 
 
 
@@ -85,88 +86,87 @@ class RenderedComponent(ComponentBase):
 class Transform(RenderedComponent):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._position = {'x': 0, 'y': 0, 'z': 0}
-        self._rotation = {'x': 0, 'y': 0, 'z': 0}
-        self._scale = {'x': 0, 'y': 0, 'z': 0}
+        self._position = glm.vec3(0, 0, 0)
+        self._rotation = glm.quat(1, 0, 0, 0)
+        self._scale = glm.vec3(1, 1, 1)
         self._model = glm.mat4(1.0)
-        self.set_position(0, 0, 0)
-        self.set_rotation(0, 0, 0)
-        self.set_scale(1, 1, 1)
-    
+        self.set_position(glm.vec3(0, 0, 0))
+        self.set_rotation(glm.quat(1, 0, 0, 0))
+        self.set_scale(glm.vec3(1, 1, 1))
+
+    def get_global_model_matrix(self):
+        if self.game_object.parent is None:
+            return self._model
+        else:
+            parent_model = self.game_object.parent.transform.get_global_model_matrix()
+            return parent_model * self._model
+
     def get_position(self):
         return self._position
-    
-    def set_position(self, x=None, y=None, z=None):
-        delta_x, delta_y, delta_z = 0, 0, 0        
-        if x != None:
-            delta_x = x - self._position['x']
-            self._position['x'] = x
-        if y != None:
-            delta_y = y - self._position['y']
-            self._position['y'] = y
-        if z != None:
-            delta_z = z - self._position['z']
-            self._position['z'] = z
-        
-        translation = glm.mat4(1.0)
-        translation = glm.translate(translation, glm.vec3(delta_x, delta_y, delta_z))
-        self._translate_model(translation)
-        
+
+    def get_global_position(self):
+        model = self.get_global_model_matrix()
+        position = glm.vec3(model[3][0], model[3][1], model[3][2])
+        return position
+
+    def set_position(self, vec3: glm.vec3):
+        self._translate = vec3
+        self._update_model_matrix()
+
     def get_rotation(self):
         return self._rotation
-    
-    def set_rotation(self, x=None, y=None, z=None):
-   
-        delta_x, delta_y, delta_z = 0, 0, 0        
-        if x != None:
-            delta_x = x - self._rotation['x']
-            self._rotation['x'] = x
-        if y != None:
-            delta_y = y - self._rotation['y']
-            self._rotation['y'] = y
-        if z != None:
-            delta_z = z - self._rotation['z']
-            self._rotation['z'] = z
+
+    def set_rotation(self, quat: glm.quat):
+        self._rotation = glm.normalize(quat)
+        self._update_model_matrix()
         
-        rotation = glm.mat4(1.0)
-        rotation = glm.rotate(rotation, glm.radians(delta_x), glm.vec3(1, 0, 0))
-        rotation = glm.rotate(rotation, glm.radians(delta_y), glm.vec3(0, 1, 0))
-        rotation = glm.rotate(rotation, glm.radians(delta_z), glm.vec3(0, 0, 1))
-        self._rotate_model(rotation)
+    def set_rotation_euler(self, vec3 : glm.vec3):
+        rad = glm.radians(vec3)
+        quat = glm.quat(rad)
+        self.set_rotation(quat)
         
+
     def get_scale(self):
         return self._scale
-    
-    def set_scale(self, x=None, y=None, z=None):     
-        if x != None:
-            self._scale['x'] = x
-        if y != None:
-            self._scale['y'] = y
-        if z != None:
-            self._scale['z'] = z
-            
-        scale = glm.mat4(1.0)
-        scale = glm.scale(scale, glm.vec3(self._scale['x'], self._scale['y'], self._scale['z']))
-        self._model  = self._model * scale
-    
-    def translate(self, x=0, y=0, z=0):
-        self.set_position(self._position['x'] + x, self._position['y'] + y, self._position['z'] + z)
+
+    def set_scale(self, vec3: glm.vec3):
+        self._scale = vec3
+        scale_matrix = glm.mat4(1.0)
+        scale_matrix = glm.scale(scale_matrix, vec3)
+        self._model = self._model * scale_matrix
+
+    def translate(self, vec3: glm.vec3):
+        self._position += vec3
+        self._update_model_matrix()
+
+    def rotate(self, quat: glm.quat):
+        self._rotation = glm.normalize(self._rotation * glm.normalize(quat))
+        self._update_model_matrix()
         
-    def rotate(self, x=0, y=0, z=0):
-        self.set_rotation(self._rotation['x'] + x, self._rotation['y'] + y, self._rotation['z'] + z)
+    def rotate_euler(self, vec3 : glm.vec3):
+        rad = glm.radians(vec3)
+        quat = glm.quat(rad)
+        self.rotate(quat)
         
-    def _rotate_model(self, rotation_matrix):
-        self._model = self._model * rotation_matrix
-        
-    def _translate_model(self, translation_matrix):
-        self._model = self._model * translation_matrix
-        
-    def get_distance_from(self, x=0, y=0, z=0):
-        return glm.distance(glm.vec3(self._position['x'], self._position['y'], self._position['z']), glm.vec3(x, y, z))
-    
+    def _update_model_matrix(self):
+        translation = glm.translate(glm.mat4(1.0), self._position)
+        rotation = glm.mat4_cast(self._rotation)
+        scale = glm.scale(glm.mat4(1.0), self._scale)
+        self._model = translation * rotation * scale
+
+    def get_distance_from(self, vec3: glm.vec3):
+        return glm.distance(self._position, vec3)
+
+    def look_at(self, target: glm.vec3, up: glm.vec3):
+        position = self.get_global_position()
+        direction = glm.normalize(target - position)
+        rot = glm.quatLookAt(direction, up)
+        self.set_rotation(rot)
+
     def set_uniforms(self):
-        model = self._model if self.game_object.parent == None else self.game_object.parent.transform._model *  self._model
+        model = self.get_global_model_matrix()
         return {"model": np.array(model, dtype=np.float32)}
+
     
     
 class DirectionalLightTransform(Transform):
@@ -177,33 +177,25 @@ class DirectionalLightTransform(Transform):
 class PointLightTransform(Transform):
     def set_uniforms(self):
         return {
-            'point_light[n].position': np.array(list(self.get_position().values()), dtype=np.float32)
+            'point_light[n].position': np.array(list(self.get_global_position()), dtype=np.float32)
         }
         
 class SpotLightTransform(Transform):
     def set_uniforms(self):
         return {
-            'spot_light[n].position': np.array(list(self.get_position().values()), dtype=np.float32)
+            'spot_light[n].position': np.array(list(self.get_global_position()), dtype=np.float32)
         }
         
         
 
         
-class CameraTransform(Transform):
-    
-    
-    
-    def _rotate_model(self, rotation_matrix):
-        self._model = rotation_matrix * self._model
-        
-    def _translate_model(self, translation_matrix):
-        self._model = translation_matrix * self._model
+class CameraTransform(Transform):   
         
     def set_uniforms(self):
-        model = self._model if self.game_object.parent == None else self.game_object.parent.transform._model *  self._model
-        model = glm.inverse(model)
-        return {"view": np.array(model, dtype=np.float32),
-                "view_position": np.array(list(self.get_position().values()), dtype=np.float32)}
+        model = self.get_global_model_matrix()
+        view = glm.inverse(model)
+        return {"view": np.array(view, dtype=np.float32),
+                "view_position": np.array(list(self.get_global_position()), dtype=np.float32)}
         
 
 class Mesh(RenderedComponent):
@@ -234,6 +226,7 @@ class Mesh(RenderedComponent):
     def update(self):
         if self._mesh.is_3d:
             glEnable(GL_CULL_FACE)
+            glCullFace(GL_FRONT)
         else:
             glDisable(GL_CULL_FACE)
 
@@ -415,13 +408,10 @@ class SpotLightSource(RenderedComponent):
             'spot_light_num': 'num(spot_light.color)',
         }
         
-class CameraLens(RenderedComponent):
-    def __init__(self, FOV=45, near=0.1, far=100, perspective=True,*args, **kwargs):
+        
+class LightSourceShadow(RenderedComponent):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.FOV = FOV
-        self.near = near
-        self.far = far
-        self.perspective = perspective
         
     def compute_perspective_projection_matrix(self):
         aspect_ratio = internal_data.window_width / internal_data.window_height
@@ -433,9 +423,30 @@ class CameraLens(RenderedComponent):
         right = internal_data.window_width / scale
         top = internal_data.window_height / scale
         bottom = -internal_data.window_height / scale
-        return np.array(glm.ortho(left, right, bottom, top, self.near, self.far), dtype=np.float32)
+        return np.array(glm.ortho(left, right, bottom, top, self.near, self.far), dtype=np.float32)    
+    
+    
+    
         
-           
+class CameraLens(RenderedComponent):
+    def __init__(self, FOV=45, near=0.1, far=100, orthographic_scale=100, perspective=True,*args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.FOV = FOV
+        self.near = near
+        self.far = far
+        self.orthographic_scale = orthographic_scale
+        self.perspective = perspective
+        
+    def compute_perspective_projection_matrix(self):
+        aspect_ratio = internal_data.window_width / internal_data.window_height
+        return np.array(glm.perspective(glm.radians(self.FOV), aspect_ratio, self.near, self.far), dtype=np.float32)
+    
+    def compute_orthographic_projection_matrix(self):
+        left = -internal_data.window_width / self.orthographic_scale
+        right = internal_data.window_width / self.orthographic_scale
+        top = internal_data.window_height / self.orthographic_scale
+        bottom = -internal_data.window_height / self.orthographic_scale
+        return np.array(glm.ortho(left, right, bottom, top, self.near, self.far), dtype=np.float32)     
         
     def set_uniforms(self):
         projection = self.compute_perspective_projection_matrix() if self.perspective else self.compute_orthographic_projection_matrix()
@@ -509,6 +520,7 @@ class SkyBoxTexture(RenderedComponent):
             return {
                 'use_skybox': False
             }
+            
 
 
 

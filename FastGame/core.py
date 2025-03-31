@@ -11,7 +11,7 @@ from . import internal_data
 
 
 class Game:
-    def __init__(self, scene, input_manager=None, options=None):
+    def __init__(self, input_manager=None, options=None):
         if input_manager is None:
             input_manager = InputManager()
             
@@ -23,15 +23,13 @@ class Game:
                 'fps': 30
             }
             
-        if not isinstance(scene, Scene):
-            raise TypeError('Scene must be of type Scene')
         if not isinstance(input_manager, InputManager):
             raise TypeError('Input manager must be of type Input')
         if not isinstance(options, dict):
             raise TypeError('Options must be of type dict')
         
         
-        self.scene = scene
+        self._scene = None
         self.options = options
         self.running = False
         self._clock = None
@@ -47,6 +45,16 @@ class Game:
         self.init_opengl()
         self.init_internal_data()
 
+    @property
+    def scene(self):
+        return self._scene
+    
+    @scene.setter
+    def scene(self, value):
+        if not isinstance(value, Scene):
+            raise TypeError('Scene must be of type Scene')
+        self._scene = value
+        self.init_scene()
             
     def init_pygame(self):
         pygame.init()
@@ -101,7 +109,7 @@ class Game:
         
     def run(self):
         self.running = True
-        self.init_scene()
+        # self.init_scene()
         while self.running:
             if self.input_manager.quit:
                 pygame.quit()

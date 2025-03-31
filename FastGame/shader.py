@@ -5,8 +5,7 @@ import regex as re
 
 
 class UniformManager:
-    def __init__(self, program_id):
-        self.program_id = program_id
+    def __init__(self):
         self._list_key_indexes = {}
     
         
@@ -29,7 +28,8 @@ class UniformManager:
         self.set_directly(uniform, value)
             
     def set_directly(self, uniform_name, value):
-        location = glGetUniformLocation(self.program_id, uniform_name)
+        from . import internal_data
+        location = glGetUniformLocation(internal_data.current_shader.program_id, uniform_name)
         # print(uniform_name, value, location)
         if isinstance(value, int):
             glUniform1i(location, value)
@@ -97,7 +97,7 @@ class Shader:
         self.fragement_shader_source = ''
         self.program_id = None
         self.compile()
-        self.uniforms = UniformManager(self.program_id)
+        # self.uniforms = UniformManager(self.program_id)
         
     def get_attribute_location(self, attribute_name):
         return glGetAttribLocation(self.program_id, attribute_name)
@@ -147,10 +147,14 @@ class Shader:
     
     
     def bind(self):
+        from . import internal_data
         glUseProgram(self.program_id)
+        internal_data.current_shader = self
         
     def unbind(self):
         glUseProgram(0)
     
     def delete(self):
         glDeleteProgram(self.program_id)
+        
+    

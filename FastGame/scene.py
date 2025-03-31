@@ -1,19 +1,23 @@
 from .utils import Color
 from .game_objects import GameObject, ObjectManager, InVisibleGameObject, SkyBox
 from . import internal_data
+from .shader import Shader
+from . import uniform_manager
 
 
 class Scene:
-    def __init__(self, name, background_color=Color('f0f0f0')):
+    def __init__(self, name, shader):
+        if not isinstance(name, str):
+            raise TypeError('Name must be a string')
+        if not isinstance(shader, Shader):
+            raise TypeError('Shader must be of type Shader')
         self.name = name
-        self.background_color = background_color
+        self.shader = shader
         self.objects = ObjectManager()
     
     def render(self):
         
-        for game_object in self.objects.get_all(GameObject):
-            if hasattr(game_object, 'renderer'):
-                game_object.renderer.shader.uniforms.clear()
+        uniform_manager.clear()
         
         transparent_objects, opaque_objects = self.objects.get_transparent_opaque_objects(except_class_name=SkyBox)
         invisible_objects = self.objects.get_all(InVisibleGameObject)
@@ -21,6 +25,7 @@ class Scene:
         transparent_objects = self.objects.sort_backtofront(transparent_objects)
         opaque_objects = self.objects.sort_fronttoback(opaque_objects)
         
+        self.shader.bind()
         for game_object in invisible_objects:
             if hasattr(game_object, 'renderer'):
                 game_object.render()

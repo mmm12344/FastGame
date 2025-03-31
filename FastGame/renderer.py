@@ -5,19 +5,20 @@ from OpenGL.GL import *
 import numpy as np
 import pygame
 import ctypes
+from . import uniform_manager
 
 
 
 
 class Renderer:
-    def __init__(self, game_object, shader):
-        if not isinstance(shader, Shader):
-            raise TypeError('Object must be of type Shader')
+    def __init__(self, game_object):
+        # if not isinstance(shader, Shader):
+        #     raise TypeError('Object must be of type Shader')
         if not isinstance(game_object, GameObject):
             raise TypeError('Object must be of type GameObject')
         
         self.game_object = game_object
-        self.shader = shader
+        # self.shader = shader
         self.VBO = None
         self.VAO = None
         self.EBO = None
@@ -56,7 +57,7 @@ class Renderer:
         
         
     def setup(self):
-        self.shader.bind()
+        # self.shader.bind()
         self.get_rendered_components()
         if isinstance(self.game_object, VisibleGameObject):
             self.generate_buffers()
@@ -119,7 +120,7 @@ class Renderer:
         
     def set_uniforms(self, uniforms):
         for uniform, value in uniforms.items():
-            self.shader.uniforms.set(uniform, value)
+            uniform_manager.set(uniform, value)
             
     def set_VBO_layout(self, VBO_layout):
         stride = VBO_layout['stride']
