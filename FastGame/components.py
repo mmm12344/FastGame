@@ -126,7 +126,7 @@ class Transform(RenderedComponent):
         return self._position
 
     def set_position(self, vec3: glm.vec3):
-        self._translate = vec3
+        self._position = vec3
         self._update_model_matrix()
 
     def get_rotation(self):
@@ -147,17 +147,15 @@ class Transform(RenderedComponent):
 
     def set_scale(self, vec3: glm.vec3):
         self._scale = vec3
-        scale_matrix = glm.mat4(1.0)
-        scale_matrix = glm.scale(scale_matrix, vec3)
-        self._model = self._model * scale_matrix
+        self._update_model_matrix()
 
     def translate(self, vec3: glm.vec3):
         self._position += vec3
-        self._update_model_matrix()
+        self._translate_model_matrix(vec3)
 
     def rotate(self, quat: glm.quat):
         self._rotation = glm.normalize(self._rotation * glm.normalize(quat))
-        self._update_model_matrix()
+        self._rotate_model_matrix(quat)
         
     def rotate_euler(self, vec3 : glm.vec3):
         rad = glm.radians(vec3)
@@ -169,6 +167,14 @@ class Transform(RenderedComponent):
         rotation = glm.mat4_cast(self._rotation)
         scale = glm.scale(glm.mat4(1.0), self._scale)
         self._model = translation * rotation * scale
+        
+    def _rotate_model_matrix(self, quat: glm.quat):
+        rotation = glm.mat4_cast(quat)
+        self._model = self._model * rotation
+        
+    def _translate_model_matrix(self, vec3: glm.vec3):
+        translation = glm.translate(glm.mat4(1.0), vec3)
+        self._model = self._model * translation
 
     def get_distance_from(self, vec3: glm.vec3):
         return glm.distance(self._position, vec3)
@@ -188,6 +194,7 @@ class Transform(RenderedComponent):
 class DirectionalLightTransform(Transform):
     def set_uniforms(self):
         return {
+            'ligh_view': np.array(list(self.get_global_view_matrix()), dtype=np.float32)
         }
         
 class PointLightTransform(Transform):
@@ -199,18 +206,16 @@ class PointLightTransform(Transform):
 class SpotLightTransform(Transform):
     def set_uniforms(self):
         return {
-            'spot_light[n].position': np.array(list(self.get_global_position()), dtype=np.float32)
+            'spot_light[n].position': np.array(list(self.get_global_position()), dtype=np.float32),
+            'ligh_view': np.array(list(self.get_global_view_matrix()), dtype=np.float32)
         }
         
         
 
         
 class CameraTransform(Transform):   
-        
     def set_uniforms(self):
-        model = self.get_global_model_matrix()
-        view = glm.inverse(model)
-        return {"view": np.array(view, dtype=np.float32),
+        return {"view": np.array(self.get_global_view_matrix(), dtype=np.float32),
                 "view_position": np.array(list(self.get_global_position()), dtype=np.float32)}
         
 
@@ -426,8 +431,13 @@ class SpotLightSource(RenderedComponent):
         
         
 class LightSourceShadow(RenderedComponent):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, FOV=45, near=0.1, far=100, orthographic_scale=100, perspective=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.FOV = FOV
+        self.near = near
+        self.far = far
+        self.orthographic_scale = orthographic_scale
+        self.perspective = perspective
         
     def compute_perspective_projection_matrix(self):
         aspect_ratio = internal_data.window_width / internal_data.window_height
@@ -439,7 +449,13 @@ class LightSourceShadow(RenderedComponent):
         right = internal_data.window_width / scale
         top = internal_data.window_height / scale
         bottom = -internal_data.window_height / scale
-        return np.array(glm.ortho(left, right, bottom, top, self.near, self.far), dtype=np.float32)    
+        return np.array(glm.ortho(left, right, bottom, top, self.near, self.far), dtype=np.float32)
+    
+    def set_uniforms(self):
+        projection = self.compute_perspective_projection_matrix() if self.perspective else self.compute_orthographic_projection_matrix()
+        return {
+            'light_projection': projection
+        }
     
     
     
@@ -470,6 +486,7 @@ class CameraLens(RenderedComponent):
             'projection': projection,
             'perspective_projection': self.perspective,
         }
+                
         
         
 class SkyBoxTexture(RenderedComponent):
