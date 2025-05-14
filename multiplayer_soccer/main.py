@@ -112,7 +112,7 @@ shared_player2.transform.set_position(vec3(30, 1, 0))
 shared_player2.material.color = Color('#1E90FF')
 shared_player2.components.add('controller', PlayerController('player2_horizontal', 'player2_vertical'))
 
-shared_ball = Sphere('ball')
+shared_ball = Cuboid('ball')
 shared_ball.components.add('rigidbody', RigidBody(friction=0, bounciness=0.99, linear_damping=0.001, gravity=np.array([0,0,0])))
 shared_ball.components.add('collider', BoxCollider(size=[2,2,2]))
 shared_ball.transform.translate(vec3(0, 1, 0))
