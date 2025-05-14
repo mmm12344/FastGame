@@ -38,6 +38,6 @@ void main() {
         gl_Position = projection * view * world_pos;
         tex_coord = a_texture_coordinate * texture_repeat;
         frag_normal = mat3(transpose(inverse(model))) * a_vertex_normal;
-        frag_pos_light_space = light_projection * light_view * model * vec4(frag_position, 1.0);
+        frag_pos_light_space = light_projection * light_view * vec4(frag_position, 1.0);
     }
 }

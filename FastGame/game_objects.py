@@ -1,4 +1,3 @@
-
 class GameObject:
     def __init__(self, name):
         
@@ -12,9 +11,13 @@ class GameObject:
         self.renderer = Renderer(game_object=self)
         
         self.components = ComponentManager(game_object=self)
+        self.components.start_lock = True
         self.components.add('transform', self.transform)
         
     def start(self):
+        self.components.start_lock = False
+        self.components.start()
+        self.objects.start()
         self.renderer.setup()
 
     def update(self):
@@ -29,6 +32,7 @@ class ObjectManager:
     def __init__(self, parent=None):
         self._objects = []
         self.parent = parent
+        self.start_lock = False
         
     def add(self, game_object):
         if not isinstance(game_object, GameObject):
@@ -43,11 +47,16 @@ class ObjectManager:
         self._objects.append(game_object)
         if self.parent is not None:
             game_object.parent = self.parent
-        game_object.start()
+        if not self.start_lock:
+            game_object.start()
         
     def update(self):
         for game_object in self._objects:
             game_object.update()
+            
+    def start(self):
+        for game_object in self._objects:
+            game_object.start()
         
     def get(self, name):
         for obj in self._objects:
@@ -109,6 +118,7 @@ class ObjectManager:
             else:
                 opaque.append(game_object)
         return transparent, opaque
+ 
     
         
         
@@ -165,6 +175,12 @@ class SkyBox(VisibleGameObject):
         self.mesh.mesh = MeshParser('meshes/cuboid.obj')
         
         self.components.add('texture', self.texture)
+        
+        
+class FootballGoal(VisibleGameObject):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.mesh.mesh  =  MeshParser('meshes/football_goal.obj')
       
 
 class Light(InVisibleGameObject):
@@ -217,6 +233,24 @@ class Camera(InVisibleGameObject):
 
         self.components.add('transform', self.transform)
         self.components.add('lens', self.lens)
+
+
+class Text(GameObject):
+    def __init__(self, name, text='', x=10, y=10, font_size=24, color=None, anchor_x='left', anchor_y='top'):
+        super().__init__(name)
+        from .components import TextDisplay, Color
+        if color is None:
+            color = Color('#FFFFFF')
+        text_display = TextDisplay(
+            text=text,
+            x=x,
+            y=y,
+            font_size=font_size,
+            color=color,
+            anchor_x=anchor_x,
+            anchor_y=anchor_y
+        )
+        self.components.add('text_display', text_display)
 
   
 from .components import *

@@ -7,9 +7,9 @@ class InternalData:
         self.delta_time = 0
         self.input_manager = None
         self.current_shader = None
-        
+        self.current_scene = None
+        self.uniform_manager = None
         
 internal_data = InternalData()
-uniform_manager = UniformManager()
 
 

@@ -1,7 +1,7 @@
-import pygame
+import pyglet
 
 class InputAxis:
-    def __init__(self, positive_direction=[], negative_direction=[], snap=False, sensitivity=0.7):
+    def __init__(self, positive_direction=[], negative_direction=[], snap=True, sensitivity=1):
         self.positive_direction = positive_direction
         self.negative_direction = negative_direction
         self.snap = snap
@@ -19,19 +19,17 @@ class InputAxis:
             self.value = target
         else:
             self.value += (target - self.value) * self.sensitivity * delta_time
-        
-        
-        
-        
-            
 
 class InputManager:
     def __init__(self):
         self.quit = False
-        
         self.input_axes = {}
-        
         self.pressed_keys = set()
+        self._pyglet_window = None
+        
+    def attach_window(self, window):
+        self._pyglet_window = window
+        window.push_handlers(self)
         
     def add_axis(self, axis_name, axis_obj):
         self.input_axes[axis_name] = axis_obj
@@ -39,18 +37,16 @@ class InputManager:
     def remove_axis(self, axis_name):
         del self.input_axes[axis_name]
         
-    def update(self, delta_time):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.quit = True
-                return
-            elif event.type == pygame.KEYDOWN:
-                self.pressed_keys.add(pygame.key.name(event.key))
-            elif event.type == pygame.KEYUP:
-                key_name = pygame.key.name(event.key)
-                if key_name in self.pressed_keys:
-                    self.pressed_keys.remove(key_name)
+    def on_key_press(self, symbol, modifiers):
+        key_name = pyglet.window.key.symbol_string(symbol).lower()
+        self.pressed_keys.add(key_name)
+        
+    def on_key_release(self, symbol, modifiers):
+        key_name = pyglet.window.key.symbol_string(symbol).lower()
+        if key_name in self.pressed_keys:
+            self.pressed_keys.remove(key_name)
                     
+    def update(self, delta_time):
+        # pyglet handles events automatically, so just update axes
         for axis in self.input_axes.values():
             axis.update(self.pressed_keys, delta_time)
-                

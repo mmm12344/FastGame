@@ -1,11 +1,11 @@
-from .game_objects import GameObject, VisibleGameObject, SkyBox
+from .game_objects import GameObject, VisibleGameObject, SkyBox, DirectionalLight, SpotLight
 from .shader import Shader
 from .components import Transform, Mesh, Material, RenderedComponent
 from OpenGL.GL import *
 import numpy as np
 import pygame
 import ctypes
-from . import uniform_manager
+from . import internal_data
 
 
 
@@ -73,10 +73,11 @@ class Renderer:
     def render(self):
         
         for component in self._rendered_components:
-            component.update()
+            component.setup()
             self.set_component_uniforms(component)
         
-        self.render_directly()
+        if isinstance(self.game_object, VisibleGameObject):
+            self.render_directly()
         
         for component in self._rendered_components:
             component.post_setup()
@@ -85,10 +86,9 @@ class Renderer:
                 self.set_uniforms(uniforms) 
                 
     def render_directly(self):
-        if isinstance(self.game_object, VisibleGameObject):
-            glBindVertexArray(self.VAO)
-            glDrawElements(GL_TRIANGLES, self._index_size, GL_UNSIGNED_INT, None)
-            glBindVertexArray(0)
+        glBindVertexArray(self.VAO)
+        glDrawElements(GL_TRIANGLES, self._index_size, GL_UNSIGNED_INT, None)
+        glBindVertexArray(0)
         
     def set_component_uniforms(self, component):
         uniforms = component.set_uniforms()
@@ -124,7 +124,7 @@ class Renderer:
         
     def set_uniforms(self, uniforms):
         for uniform, value in uniforms.items():
-            uniform_manager.set(uniform, value)
+            internal_data.uniform_manager.set(uniform, value)
             
     def set_VBO_layout(self, VBO_layout):
         stride = VBO_layout['stride']

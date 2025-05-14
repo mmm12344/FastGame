@@ -30,6 +30,7 @@ class UniformManager:
     def set_directly(self, uniform_name, value):
         from . import internal_data
         location = glGetUniformLocation(internal_data.current_shader.program_id, uniform_name)
+        # print(f"Uniform: {uniform_name}, Location: {location}")
         if isinstance(value, int):
             glUniform1i(location, value)
         elif isinstance(value, float):
@@ -95,7 +96,7 @@ class Shader:
         self.vertex_shader_source = ''
         self.fragement_shader_source = ''
         self.program_id = None
-        self.compile()
+        # self.compile()
         # self.uniforms = UniformManager(self.program_id)
         
     def get_attribute_location(self, attribute_name):
@@ -149,11 +150,15 @@ class Shader:
         from . import internal_data
         glUseProgram(self.program_id)
         internal_data.current_shader = self
+        if hasattr(internal_data, 'uniform_manager'):
+            self.uniform_manager = internal_data.uniform_manager
+        else:
+            self.uniform_manager = None
         
     def unbind(self):
         glUseProgram(0)
     
     def delete(self):
         glDeleteProgram(self.program_id)
-        
-    
+
+
